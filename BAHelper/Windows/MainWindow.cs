@@ -43,8 +43,26 @@ public sealed class MainWindow(TrapperService trapperService, PartyService porta
 
     private void DrawPartyTab()
     {
-        ImGui.TextWrapped("点击以发送队号对应的门坐标到小队频道");
-        for(var i = 1; i < 7; i++)
+        ImGui.TextWrapped("点击发送小队门坐标到:");
+        ImGui.SameLine();
+        var usePartyChannel = config.UsePartyChannel;
+        var save = false;
+        if (ImGui.RadioButton("小队", usePartyChannel == true))
+        {
+            config.UsePartyChannel = true;
+            save = true;
+        }
+        ImGui.SameLine();
+        if (ImGui.RadioButton("默语", usePartyChannel == false))
+        {
+            config.UsePartyChannel = false;
+            save = true;
+        }
+        save |= ImGui.Checkbox("使用国服莫古力区门图", ref config.IsCNMoogleDCPlayer);
+        if (save)
+            DalamudApi.Config.Save();
+
+        for (var i = 1; i < 7; i++)
         {
             if (ImGui.Button($"{i}队", new(40f, 40f)))
             {
