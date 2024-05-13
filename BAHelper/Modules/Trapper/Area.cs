@@ -55,7 +55,7 @@ public class Area
 
     private List<Trap> _traps = null;
     public List<Trap> Traps => _traps ??= Trap.AllTraps.Values.Where(t => t.AreaTag == Tag).ToList();
-    public bool ShowScanningSpot => Traps.Any(trap => trap.State == TrapState.NotScanned);
+    public bool ShowScanningSpot => Traps.Any(trap => trap.ShouldDraw == true);
     public static bool TryGet(AreaTag areaTag, out Area area)
     {
         return AllAreas.TryGetValue(areaTag, out area);

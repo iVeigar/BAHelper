@@ -22,8 +22,7 @@ namespace BAHelper
         public bool AdvancedModeEnabled = false;
         public float TrapViewDistance = 100f;
         public bool DrawRecordedTraps = false;
-        public bool DrawDiscoveredTraps = false;
-        public bool DrawExplosionRange = false;
+        public bool DrawTrapBlastCircle = false;
         public bool DrawTrap15m = false;
         public bool DrawTrap36m = false;
         public bool DrawRecommendedScanningSpots = false;
@@ -33,7 +32,7 @@ namespace BAHelper
         public uint TrapBigBombColor = Color.Red;
         public uint TrapSmallBombColor = Color.Orange;
         public uint TrapPortalColor = Color.Green;
-        public uint DiscoveredTrapColor = Color.TransBlack;
+        public uint RevealedTrapColor = Color.TransBlack;
         public uint Trap15mCircleColor = Color.LightCyan;
         public uint Trap36mCircleColor = Color.DarkCyan;
         public uint ScanningSpotColor = Color.Cyan;

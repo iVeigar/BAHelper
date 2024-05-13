@@ -91,8 +91,8 @@ public class TrapperTool
         var checkStatusShell = DalamudApi.Config.CheckStatusShell;
 
         var (action1, action2) = DalamudApi.ClientState.LocalPlayer.CarriedLogoActions();
-        protectMinded = action1 == 26 || action2 == 26;
-        shellMinded = action1 == 27 || action2 == 27;
+        protectMinded = action1 == 12 || action2 == 12;
+        shellMinded = action1 == 13 || action2 == 13;
 
         if (!checkStatusProtect && !checkStatusShell
             || checkStatusProtect && !protectMinded

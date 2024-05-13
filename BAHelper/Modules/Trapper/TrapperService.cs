@@ -107,7 +107,7 @@ public sealed partial class TrapperService : IDisposable
     private void CheckPortalStatus()
     {
         PossibleAreasOfPortal.Clear();
-        foreach (var portal in Trap.AllTraps.Select(kv => kv.Value).Where(p => p.Type == TrapType.Portal && p.State != TrapState.Disabled))
+        foreach (var portal in Trap.AllTraps.Select(kv => kv.Value).Where(p => p.Type == TrapType.Portal && p.ShouldDraw))
         {
             PossibleAreasOfPortal.Add(portal.AreaTag);
         }
@@ -118,7 +118,8 @@ public sealed partial class TrapperService : IDisposable
         var drawList = ImGui.GetBackgroundDrawList(ImGui.GetMainViewport());
         if (config.DrawRecordedTraps)
         {
-            drawList.DrawTraps();
+            drawList.DrawTraps(Trap.AllTraps.Values);
+            drawList.DrawTraps(TrapDiscovered, true);
         }
         if (config.DrawAreaBorder)
         {
@@ -192,10 +193,8 @@ public sealed partial class TrapperService : IDisposable
             2009730U => TrapType.SmallBomb,
             _ => TrapType.None
         };
-        var trapState = TrapState.Revealed;
-        if (trapType == TrapType.None && obj.DataId == 6358U)
+        if (trapType == TrapType.None && obj is BattleNpc bnpc && bnpc.BattleNpcKind == BattleNpcSubKind.Enemy && bnpc.Name.TextValue == "陷阱")
         {
-            trapState = TrapState.Triggered;
             trapType = (areaTag == AreaTag.CircularPlatform || areaTag == AreaTag.OctagonRoomFromRaiden || areaTag == AreaTag.OctagonRoomToRoomGroup2)
                 ? TrapType.SmallBomb
                 : TrapType.BigBomb;
@@ -206,7 +205,7 @@ public sealed partial class TrapperService : IDisposable
             {
                 Type = trapType,
                 Location = obj.Position,
-                State = trapState,
+                ShouldDraw = true,
                 AreaTag = areaTag,
             });
             return true;
@@ -216,33 +215,28 @@ public sealed partial class TrapperService : IDisposable
     
     private void OnTrapDiscovered(Trap discoveredTrap)
     {
-        var exists = !TrapDiscovered.Add(discoveredTrap);
+        if (!TrapDiscovered.Add(discoveredTrap))
+            return;
+
         if (discoveredTrap.IsInRecords)
         {
-            if (Trap.AllTraps[discoveredTrap.ID].State != discoveredTrap.State)
-                Trap.AllTraps[discoveredTrap.ID].State = discoveredTrap.State;
-
-            if (exists)
-                return;
-
+            Trap.AllTraps[discoveredTrap.ID].ShouldDraw = false;
             foreach (var id in discoveredTrap.GetComplementarySet())
-            {
-                if (Trap.AllTraps.TryGetValue(id, out var trap))
-                {
-                    trap.State = TrapState.Disabled;
-                }
-            }
+                Trap.AllTraps[id].ShouldDraw = false;
 
             if (discoveredTrap.Type == TrapType.Portal)
-            {
                 ShowRoomGroup1Toast(discoveredTrap.AreaTag, false);
-            }
         }
-        else if (!exists)
+        else
         {
-            var str = $"探出新的陷阱/门点位! {{, new(){{ Type = TrapType.{discoveredTrap.Type}, Location = new({discoveredTrap.Location.X}f, {discoveredTrap.Location.Y}f, {discoveredTrap.Location.Z}f), AreaTag = AreaTag.{discoveredTrap.AreaTag} }} }},";
+            var str = $"探出新的陷阱/门点位! {{{{id}}, new( {{id}}, TrapType.{discoveredTrap.Type}, new({discoveredTrap.Location.X}f, {discoveredTrap.Location.Y}f, {discoveredTrap.Location.Z}f), AreaTag.{discoveredTrap.AreaTag}) }},";
             DalamudApi.PluginLog.Info(str);
             Plugin.PrintMessage(str);
+            // 新点位只可能在那两个只有一个易伤雷的房间
+            if (Area.TryGet(discoveredTrap.AreaTag, out var area))
+            {
+                area.Traps.ForEach(trap => {trap.ShouldDraw = false;});
+            }
         }
     }
     
@@ -250,8 +244,10 @@ public sealed partial class TrapperService : IDisposable
     {
         if (!obj.IsValid() || obj is not BattleNpc bnpc || !bnpc.BattleNpcKind.Equals(BattleNpcSubKind.Enemy))
             return false;
+
         if (bnpc.IsDead() || bnpc.InCombat() || !MobInfo.Mobs.TryGetValue(bnpc.NameId, out var mobInfo))
             return true;
+
         entityList.Add(new(bnpc, mobInfo));
         return true;
     }
@@ -262,9 +258,7 @@ public static class DrawListExtension
     public static void DrawMobs(this ImDrawListPtr drawList, List<MobObject> mobObjects)
     {
         foreach(var mob in mobObjects)
-        {
             drawList.DrawMob(mob);
-        }
     }
     
     public static void DrawMob(this ImDrawListPtr drawList, MobObject mob)
@@ -297,48 +291,38 @@ public static class DrawListExtension
         }
     }
     
-    public static void DrawTrap(this ImDrawListPtr drawList, Trap trap)
+    public static void DrawTrap(this ImDrawListPtr drawList, Trap trap, bool revealed)
     {
-        if (trap.State == TrapState.Disabled || trap.State != TrapState.NotScanned && !DalamudApi.Config.DrawDiscoveredTraps)
-            return;
+        var inView = DalamudApi.GameGui.WorldToScreen(trap.Location, out var screenPos);
+        var distance = trap.Location.Distance2D(Common.MeWorldPos);
 
-        DalamudApi.GameGui.WorldToScreen(trap.Location, out var screenPos);
-
-        (uint color, float radius) = trap.Type switch {
-            TrapType.BigBomb => (DalamudApi.Config.TrapBigBombColor, 5.0f),
-            TrapType.SmallBomb => (DalamudApi.Config.TrapSmallBombColor, 3.0f),
-            TrapType.Portal => (DalamudApi.Config.TrapPortalColor, 1.0f),
-            _ => (Color.White, 0.0f)
+        uint color = trap.Type switch {
+            TrapType.BigBomb => DalamudApi.Config.TrapBigBombColor,
+            TrapType.SmallBomb => DalamudApi.Config.TrapSmallBombColor,
+            TrapType.Portal => DalamudApi.Config.TrapPortalColor,
+            _ => Color.White
         };
-        if (trap.State != TrapState.NotScanned)
-            color = DalamudApi.Config.DiscoveredTrapColor;
 
-        if (drawList.DrawRingWorld(trap.Location, radius, 1.5f, color))
-        {
-            drawList.AddCircleFilled(screenPos, 2f, color); // 画中心点
-        }
+        if (DalamudApi.Config.DrawTrapBlastCircle || distance < trap.BlastRadius + 4.0f)
+            drawList.DrawRingWorld(trap.Location, trap.BlastRadius, 1.3f, color.SetAlpha(0.4f));
 
-        var explosionRadius = trap.Type == TrapType.BigBomb ? 7.0f : 9.0f;
-        if (DalamudApi.Config.DrawExplosionRange && trap.Type != TrapType.Portal && trap.Location.Distance2D(Common.MeWorldPos) < explosionRadius + 2.0f)
-        {
-            drawList.DrawRingWorld(trap.Location, explosionRadius, 1f, color.SetAlpha(0.1f));
-        }
+        if (revealed)
+            color = DalamudApi.Config.RevealedTrapColor;
+        if (drawList.DrawRingWorld(trap.Location, trap.HitBoxRadius, 1.5f, color) && inView)
+            drawList.AddCircleFilled(screenPos, 1.5f, color); // 画中心点
 
-        if (DalamudApi.Config.DrawTrap15m || trap.Location.Distance2D(Common.MeWorldPos) < 20.0f && trap.State == TrapState.NotScanned)
-        {
+        if (DalamudApi.Config.DrawTrap15m || trap.ShouldDraw && distance < 19.0f)
             drawList.DrawRingWorld(trap.Location, 15f, 1f, DalamudApi.Config.Trap15mCircleColor);
-        }
 
-        if (DalamudApi.Config.DrawTrap36m || (trap.AreaTag == AreaTag.EarthRoom1 || trap.AreaTag == AreaTag.FireRoom1) && trap.Location.Distance2D(Common.MeWorldPos) < 38.0f)
-        {
+        if (DalamudApi.Config.DrawTrap36m || (trap.AreaTag == AreaTag.EarthRoom1 || trap.AreaTag == AreaTag.FireRoom1) && distance < 40.0f)
             drawList.DrawRingWorld(trap.Location, 36f, 1f, DalamudApi.Config.Trap36mCircleColor, true);
-        }
+
     }
     
-    public static void DrawTraps(this ImDrawListPtr drawList)
+    public static void DrawTraps(this ImDrawListPtr drawList, IEnumerable<Trap> traps, bool revealed = false)
     {
-        foreach(var trap in Trap.AllTraps.Select(kv => kv.Value).Where(trap => trap.Location.Distance2D(Common.MeWorldPos) < DalamudApi.Config.TrapViewDistance))
-            drawList.DrawTrap(trap);
+        foreach(var trap in traps.Where(trap => trap.ShouldDraw && trap.Location.Distance2D(Common.MeWorldPos) < DalamudApi.Config.TrapViewDistance))
+            drawList.DrawTrap(trap, revealed);
     }
 
     public static void DrawAreaBorder(this ImDrawListPtr drawList, AreaTag areaTag)

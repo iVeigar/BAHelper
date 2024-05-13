@@ -196,19 +196,19 @@ public sealed class MainWindow(TrapperService trapperService, PartyService porta
                     }
                     ImGui.SameLine();
                     ImGui.Text("传送门");
+
+                    var discoveredTrapColorV4 = ImGui.ColorConvertU32ToFloat4(config.RevealedTrapColor);
+                    if (ImGuiUtils.ColorPickerWithPalette(4, "", ref discoveredTrapColorV4))
+                    {
+                        save = true;
+                        config.RevealedTrapColor = ImGui.ColorConvertFloat4ToU32(discoveredTrapColorV4);
+                    }
+                    ImGui.SameLine();
+                    ImGui.Text("已探明/踩到的");
                 }
             }
 
-            save |= ImGui.Checkbox("绘制探出/踩过的陷阱", ref config.DrawDiscoveredTraps);
-            ImGui.SameLine();
-            var discoveredTrapColorV4 = ImGui.ColorConvertU32ToFloat4(config.DiscoveredTrapColor);
-            if (ImGuiUtils.ColorPickerWithPalette(4, "", ref discoveredTrapColorV4))
-            {
-                save = true;
-                config.DiscoveredTrapColor = ImGui.ColorConvertFloat4ToU32(discoveredTrapColorV4);
-            }
-                    
-            save |= ImGui.Checkbox("绘制陷阱爆炸波及范围(靠近时)", ref config.DrawExplosionRange);
+            save |= ImGui.Checkbox("绘制陷阱爆炸波及范围", ref config.DrawTrapBlastCircle);
             
             save |= ImGui.Checkbox("绘制陷阱15m半径提示圈", ref config.DrawTrap15m);
             ImGui.SameLine();

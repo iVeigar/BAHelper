@@ -5,14 +5,6 @@ using System.Numerics;
 
 namespace BAHelper.Modules.Trapper;
 
-public enum TrapState
-{
-    NotScanned,
-    Revealed,
-    Triggered,
-    Disabled
-}
-
 public enum TrapType
 {
     None,
@@ -35,7 +27,7 @@ public class Trap : IEquatable<Trap>
 
     public AreaTag AreaTag { get; init; }
 
-    public TrapState State { get; set; } = TrapState.NotScanned;
+    public bool ShouldDraw { get; set; } = true;
 
     private int _id = -1;
 
@@ -45,13 +37,29 @@ public class Trap : IEquatable<Trap>
         {
             if (_id == -1)
             {
-                _id = AllTraps.FirstOrDefault(kv => Equals(kv.Value)).Key;
+                _id = AllTraps.Values.FirstOrDefault(Equals)?._id ?? -2;
             }
             return _id;
         }
     }
 
-    public bool IsInRecords => ID != -1;
+    public bool IsInRecords => ID >= 0;
+
+    public float BlastRadius => Type switch
+    {
+        TrapType.BigBomb => 7.0f,
+        TrapType.SmallBomb => 9.0f,
+        TrapType.Portal => 1.0f,
+        _ => 0.0f
+    };
+
+    public float HitBoxRadius => Type switch
+    {
+        TrapType.BigBomb => 5.0f,
+        TrapType.SmallBomb => 3.0f,
+        TrapType.Portal => 1.0f,
+        _ => 0.0f
+    };
 
     public Trap()
     {
@@ -78,7 +86,7 @@ public class Trap : IEquatable<Trap>
 
     public override int GetHashCode()
     {
-        return ID.GetHashCode();
+        return Location.ToVector2().GetHashCode();
     }
 
 
@@ -102,9 +110,7 @@ public class Trap : IEquatable<Trap>
     public static void ResetAll()
     {
         foreach(var (_, trap) in AllTraps)
-        {
-            trap.State = TrapState.NotScanned;
-        }
+            trap.ShouldDraw = true;
     }
 
     public static void UpdateByScanResult(Vector3 center, ScanResult lastScanResult)
@@ -114,7 +120,7 @@ public class Trap : IEquatable<Trap>
 
         List<int> trapsIn15y = [];
         List<int> trapsBetween15yAnd36y = [];
-        foreach (var trap in AllTraps.Select(kv => kv.Value).Where(t => t.State == TrapState.NotScanned))
+        foreach (var trap in AllTraps.Values.Where(t => t.ShouldDraw == true))
         {
             var distance = trap.Location.Distance2D(center);
             if (distance <= 15.0f)
@@ -126,8 +132,8 @@ public class Trap : IEquatable<Trap>
         // 36y内无陷阱
         if (lastScanResult == ScanResult.NotSense)
         {
-            trapsIn15y.ForEach(t => AllTraps[t].State = TrapState.Disabled);
-            trapsBetween15yAnd36y.ForEach(t => AllTraps[t].State = TrapState.Disabled);
+            trapsIn15y.ForEach(t => AllTraps[t].ShouldDraw = false);
+            trapsBetween15yAnd36y.ForEach(t => AllTraps[t].ShouldDraw = false);
         }
         // 15y内无陷阱; 15y-36y有陷阱
         else if (lastScanResult == ScanResult.Sense)
@@ -137,27 +143,22 @@ public class Trap : IEquatable<Trap>
                 if (TrapSets[0].IsSupersetOf(trapsIn15y))
                 {
                     foreach (var id in GetComplementarySet(Enumerable.Range(0, 3).Except(trapsIn15y.Select(id => id % 3).ToHashSet())))
-                    {
-                        AllTraps[id].State = TrapState.Disabled;
-                    };
+                        AllTraps[id].ShouldDraw = false;
                 }
                 else
                 {
-                    trapsIn15y.ForEach(id => AllTraps[id].State = TrapState.Disabled);
+                    trapsIn15y.ForEach(id => AllTraps[id].ShouldDraw = false);
                 }
             }
             if (trapsBetween15yAnd36y.Count > 0)
             {
                 foreach (var id in GetComplementarySet(trapsBetween15yAnd36y))
-                {
-                    AllTraps[id].State = TrapState.Disabled;
-                }
+                    AllTraps[id].ShouldDraw = false;
             }
         }
         else if (lastScanResult == ScanResult.Discover)
         {
-            // 先一律改为disabled, 然后遍历ObjectTable结果来更新状态
-            trapsIn15y.ForEach(id => AllTraps[id].State = TrapState.Disabled);
+            trapsIn15y.ForEach(id => AllTraps[id].ShouldDraw = false);
         }
     }
 
