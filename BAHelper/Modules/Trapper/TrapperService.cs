@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Text.RegularExpressions;
 using System.Threading;
 using BAHelper.System;
@@ -186,6 +187,9 @@ public sealed partial class TrapperService : IDisposable
     
     private bool CheckTrapObject(GameObject obj, AreaTag areaTag)
     {
+        if (areaTag == AreaTag.None)
+            return false;
+
         var trapType = obj.DataId switch
         {
             2009728U => TrapType.BigBomb,
@@ -193,7 +197,7 @@ public sealed partial class TrapperService : IDisposable
             2009730U => TrapType.SmallBomb,
             _ => TrapType.None
         };
-        if (trapType == TrapType.None && obj is BattleNpc bnpc && bnpc.BattleNpcKind == BattleNpcSubKind.Enemy && bnpc.Name.TextValue == "陷阱")
+        if (trapType == TrapType.None && obj is BattleNpc { BattleNpcKind: BattleNpcSubKind.Enemy, NameId: 7958U})
         {
             trapType = (areaTag == AreaTag.CircularPlatform || areaTag == AreaTag.OctagonRoomFromRaiden || areaTag == AreaTag.OctagonRoomToRoomGroup2)
                 ? TrapType.SmallBomb
@@ -316,7 +320,6 @@ public static class DrawListExtension
 
         if (DalamudApi.Config.DrawTrap36m || (trap.AreaTag == AreaTag.EarthRoom1 || trap.AreaTag == AreaTag.FireRoom1) && distance < 40.0f)
             drawList.DrawRingWorld(trap.Location, 36f, 1f, DalamudApi.Config.Trap36mCircleColor, true);
-
     }
     
     public static void DrawTraps(this ImDrawListPtr drawList, IEnumerable<Trap> traps, bool revealed = false)
