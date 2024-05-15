@@ -56,13 +56,15 @@ public unsafe sealed class Plugin : IDalamudPlugin
 
     public void Dispose()
     {
-        Common.Dispose();
-        Game.Dispose();
+        DalamudApi.PluginInterface.RemoveChatLinkHandler();
+        DalamudApi.PluginInterface.UiBuilder.Draw -= DrawUI;
+        DalamudApi.PluginInterface.UiBuilder.OpenMainUi -= OpenMainUi;
         WindowSystem.RemoveAllWindows();
-        DalamudApi.Dispose();
         TrapperService.Dispose();
         TrapperTool.Dispose();
-        DalamudApi.PluginInterface.RemoveChatLinkHandler();
+        Common.Dispose();
+        Game.Dispose();
+        DalamudApi.Dispose();
         ECommonsMain.Dispose();
     }
 }

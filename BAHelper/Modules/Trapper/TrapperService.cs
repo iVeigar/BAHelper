@@ -310,7 +310,7 @@ public sealed partial class TrapperService : IDisposable
 
         if (config.DrawTrapBlastCircle
             && (!config.DrawTrapBlastCircleOnlyWhenApproaching || distance < trap.BlastRadius + 4.0f))
-            drawList.DrawRingWorld(trap.Location, trap.BlastRadius, 1.3f, color.SetAlpha(0.4f));
+            drawList.DrawRingWorld(trap.Location, trap.BlastRadius, 1.3f, color.SetAlpha(0.5f));
 
         if (revealed)
             color = config.RevealedTrapColor;
