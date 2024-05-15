@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
 using System.Text.RegularExpressions;
 using System.Threading;
 using BAHelper.System;
@@ -20,7 +19,7 @@ public sealed partial class TrapperService : IDisposable
     [GeneratedRegex("^(?<result>.*?)隐藏的陷阱！$")] // 发现了 / 附近感觉到有 / 附近没感觉到
     private static partial Regex MyRegex();
     private readonly Configuration config;
-    private readonly HashSet<Trap> TrapDiscovered = [];
+    private readonly HashSet<Trap> TrapRevealed = [];
     private readonly List<MobObject> MobObjects = [];
     private long LastEnumeratedAt = Environment.TickCount64;
 
@@ -37,9 +36,9 @@ public sealed partial class TrapperService : IDisposable
         DalamudApi.ChatGui.ChatMessage += OnChatMessage;
     }
 
-    private static bool ShouldDraw()
+    private bool ShouldDraw()
     {
-        return DalamudApi.Config.AdvancedModeEnabled &&
+        return config.AdvancedModeEnabled &&
                !(DalamudApi.Condition[ConditionFlag.LoggingOut] ||
                  DalamudApi.Condition[ConditionFlag.BetweenAreas] ||
                  DalamudApi.Condition[ConditionFlag.BetweenAreas51]) &&
@@ -49,7 +48,7 @@ public sealed partial class TrapperService : IDisposable
 
     private void OnChatMessage(XivChatType type, uint senderId, ref SeString sender, ref SeString message, ref bool isHandled)
     {
-        if (!DalamudApi.Config.AdvancedModeEnabled || (XivChatType)((int)type & 0x7f) != XivChatType.SystemMessage)
+        if (!config.AdvancedModeEnabled || (XivChatType)((int)type & 0x7f) != XivChatType.SystemMessage)
             return;
 
         foreach (var payload in message.Payloads)
@@ -76,7 +75,7 @@ public sealed partial class TrapperService : IDisposable
     public void Reset()
     {
         Trap.ResetAll();
-        TrapDiscovered.Clear();
+        TrapRevealed.Clear();
         ChestFoundAt = AreaTag.None;
         CheckPortalStatus();
         Monitor.Enter(MobObjects);
@@ -108,7 +107,7 @@ public sealed partial class TrapperService : IDisposable
     private void CheckPortalStatus()
     {
         PossibleAreasOfPortal.Clear();
-        foreach (var portal in Trap.AllTraps.Select(kv => kv.Value).Where(p => p.Type == TrapType.Portal && p.ShouldDraw))
+        foreach (var portal in Trap.AllTraps.Select(kv => kv.Value).Where(p => p.Type == TrapType.Portal && p.Enabled))
         {
             PossibleAreasOfPortal.Add(portal.AreaTag);
         }
@@ -119,21 +118,21 @@ public sealed partial class TrapperService : IDisposable
         var drawList = ImGui.GetBackgroundDrawList(ImGui.GetMainViewport());
         if (config.DrawRecordedTraps)
         {
-            drawList.DrawTraps(Trap.AllTraps.Values);
-            drawList.DrawTraps(TrapDiscovered, true);
+            DrawTraps(drawList, Trap.AllTraps.Values);
+            DrawTraps(drawList, TrapRevealed, true);
         }
         if (config.DrawAreaBorder)
         {
-            drawList.DrawAllAreasBorder();
+            DrawAllAreasBorder(drawList);
         }
         if (config.DrawRecommendedScanningSpots)
         {
-            drawList.DrawAllScanningSpots();
+            DrawAllScanningSpots(drawList);
         }
         if (config.DrawMobViews)
         {
             if (!Monitor.TryEnter(MobObjects)) return;
-            drawList.DrawMobs(MobObjects);
+            DrawMobs(drawList, MobObjects);
             Monitor.Exit(MobObjects);
         }
     }
@@ -205,11 +204,11 @@ public sealed partial class TrapperService : IDisposable
         }
         if (trapType != TrapType.None)
         {
-            OnTrapDiscovered(new()
+            OnTrapRevealed(new()
             {
                 Type = trapType,
                 Location = obj.Position,
-                ShouldDraw = true,
+                Enabled = true,
                 AreaTag = areaTag,
             });
             return true;
@@ -217,29 +216,29 @@ public sealed partial class TrapperService : IDisposable
         return false;
     }
     
-    private void OnTrapDiscovered(Trap discoveredTrap)
+    private void OnTrapRevealed(Trap revealedTrap)
     {
-        if (!TrapDiscovered.Add(discoveredTrap))
+        if (!TrapRevealed.Add(revealedTrap))
             return;
 
-        if (discoveredTrap.IsInRecords)
+        if (revealedTrap.IsInRecords)
         {
-            Trap.AllTraps[discoveredTrap.ID].ShouldDraw = false;
-            foreach (var id in discoveredTrap.GetComplementarySet())
-                Trap.AllTraps[id].ShouldDraw = false;
+            Trap.AllTraps[revealedTrap.ID].Enabled = false;
+            foreach (var id in revealedTrap.GetComplementarySet())
+                Trap.AllTraps[id].Enabled = false;
 
-            if (discoveredTrap.Type == TrapType.Portal)
-                ShowRoomGroup1Toast(discoveredTrap.AreaTag, false);
+            if (revealedTrap.Type == TrapType.Portal)
+                ShowRoomGroup1Toast(revealedTrap.AreaTag, false);
         }
         else
         {
-            var str = $"探出新的陷阱/门点位! {{{{id}}, new( {{id}}, TrapType.{discoveredTrap.Type}, new({discoveredTrap.Location.X}f, {discoveredTrap.Location.Y}f, {discoveredTrap.Location.Z}f), AreaTag.{discoveredTrap.AreaTag}) }},";
+            var str = $"探出新的陷阱/门点位! {{{{id}}, new( {{id}}, TrapType.{revealedTrap.Type}, new({revealedTrap.Location.X}f, {revealedTrap.Location.Y}f, {revealedTrap.Location.Z}f), AreaTag.{revealedTrap.AreaTag}) }},";
             DalamudApi.PluginLog.Info(str);
             Plugin.PrintMessage(str);
             // 新点位只可能在那两个只有一个易伤雷的房间
-            if (Area.TryGet(discoveredTrap.AreaTag, out var area))
+            if (Area.TryGet(revealedTrap.AreaTag, out var area))
             {
-                area.Traps.ForEach(trap => {trap.ShouldDraw = false;});
+                area.Traps.ForEach(trap => {trap.Enabled = false;});
             }
         }
     }
@@ -255,39 +254,36 @@ public sealed partial class TrapperService : IDisposable
         entityList.Add(new(bnpc, mobInfo));
         return true;
     }
-}
 
-public static class DrawListExtension
-{
-    public static void DrawMobs(this ImDrawListPtr drawList, List<MobObject> mobObjects)
+    public void DrawMobs(ImDrawListPtr drawList, List<MobObject> mobObjects)
     {
         foreach(var mob in mobObjects)
-            drawList.DrawMob(mob);
+            DrawMob(drawList, mob);
     }
     
-    public static void DrawMob(this ImDrawListPtr drawList, MobObject mob)
+    public void DrawMob(ImDrawListPtr drawList, MobObject mob)
     {
         if (mob.Position.Distance2D(Common.MeWorldPos) <= 50)
         {
             switch (mob.AggroType)
             {
                 case AggroType.Sight:
-                    drawList.DrawConeFromCenterPoint(mob.Position, mob.Rotation, mob.SightRadian, mob.AggroDistance, DalamudApi.Config.NormalAggroColor);
+                    drawList.DrawConeFromCenterPoint(mob.Position, mob.Rotation, mob.SightRadian, mob.AggroDistance, config.NormalAggroColor);
                     break;
                 case AggroType.Sound:
-                    drawList.DrawRingWorld(mob.Position, mob.AggroDistance, 1f, DalamudApi.Config.SoundAggroColor);
-                    drawList.DrawRingWorld(mob.Position, mob.Bnpc.HitboxRadius, 1f, DalamudApi.Config.SoundAggroColor.SetAlpha(0.4f), filled: true);
-                    drawList.DrawRingWorld(mob.Position, mob.Bnpc.HitboxRadius, 1f, DalamudApi.Config.SoundAggroColor);
+                    drawList.DrawRingWorld(mob.Position, mob.AggroDistance, 1f, config.SoundAggroColor);
+                    drawList.DrawRingWorld(mob.Position, mob.Bnpc.HitboxRadius, 1f, config.SoundAggroColor.SetAlpha(0.4f), filled: true);
+                    drawList.DrawRingWorld(mob.Position, mob.Bnpc.HitboxRadius, 1f, config.SoundAggroColor);
                     break;
                 case AggroType.Proximity:
-                    drawList.DrawRingWorld(mob.Position, mob.AggroDistance, 1f, DalamudApi.Config.NormalAggroColor);
-                    drawList.DrawRingWorld(mob.Position, mob.Bnpc.HitboxRadius, 1f, DalamudApi.Config.NormalAggroColor.SetAlpha(0.4f), filled: true);
-                    drawList.DrawRingWorld(mob.Position, mob.Bnpc.HitboxRadius, 1f, DalamudApi.Config.NormalAggroColor);
+                    drawList.DrawRingWorld(mob.Position, mob.AggroDistance, 1f, config.NormalAggroColor);
+                    drawList.DrawRingWorld(mob.Position, mob.Bnpc.HitboxRadius, 1f, config.NormalAggroColor.SetAlpha(0.4f), filled: true);
+                    drawList.DrawRingWorld(mob.Position, mob.Bnpc.HitboxRadius, 1f, config.NormalAggroColor);
                     break;
                 case AggroType.Magic:
                 case AggroType.Blood:
-                    drawList.DrawRingWorld(mob.Position, mob.Bnpc.HitboxRadius, 1f, DalamudApi.Config.SoundAggroColor.SetAlpha(0.4f), filled: true);
-                    drawList.DrawRingWorld(mob.Position, mob.Bnpc.HitboxRadius, 1f, DalamudApi.Config.SoundAggroColor);
+                    drawList.DrawRingWorld(mob.Position, mob.Bnpc.HitboxRadius, 1f, config.SoundAggroColor.SetAlpha(0.4f), filled: true);
+                    drawList.DrawRingWorld(mob.Position, mob.Bnpc.HitboxRadius, 1f, config.SoundAggroColor);
                     break;
                 default:
                     break;
@@ -295,116 +291,126 @@ public static class DrawListExtension
         }
     }
     
-    public static void DrawTrap(this ImDrawListPtr drawList, Trap trap, bool revealed)
+    public void DrawTrap(ImDrawListPtr drawList, Trap trap, bool revealed)
     {
-        var inView = DalamudApi.GameGui.WorldToScreen(trap.Location, out var screenPos);
-        var distance = trap.Location.Distance2D(Common.MeWorldPos);
+        if (!trap.Enabled)
+            return;
 
+        var distance = trap.Location.Distance2D(Common.MeWorldPos);
+        if (distance > config.TrapViewDistance)
+            return;
+
+        var inView = DalamudApi.GameGui.WorldToScreen(trap.Location, out var screenPos);
         uint color = trap.Type switch {
-            TrapType.BigBomb => DalamudApi.Config.TrapBigBombColor,
-            TrapType.SmallBomb => DalamudApi.Config.TrapSmallBombColor,
-            TrapType.Portal => DalamudApi.Config.TrapPortalColor,
+            TrapType.BigBomb => config.TrapBigBombColor,
+            TrapType.SmallBomb => config.TrapSmallBombColor,
+            TrapType.Portal => config.TrapPortalColor,
             _ => Color.White
         };
 
-        if (DalamudApi.Config.DrawTrapBlastCircle || distance < trap.BlastRadius + 4.0f)
+        if (config.DrawTrapBlastCircle
+            && (!config.DrawTrapBlastCircleOnlyWhenApproaching || distance < trap.BlastRadius + 4.0f))
             drawList.DrawRingWorld(trap.Location, trap.BlastRadius, 1.3f, color.SetAlpha(0.4f));
 
         if (revealed)
-            color = DalamudApi.Config.RevealedTrapColor;
+            color = config.RevealedTrapColor;
         if (drawList.DrawRingWorld(trap.Location, trap.HitBoxRadius, 1.5f, color) && inView)
             drawList.AddCircleFilled(screenPos, 1.5f, color); // 画中心点
 
-        if (DalamudApi.Config.DrawTrap15m || trap.ShouldDraw && distance < 19.0f)
-            drawList.DrawRingWorld(trap.Location, 15f, 1f, DalamudApi.Config.Trap15mCircleColor);
+        if (config.DrawTrap15m
+            && (!config.DrawTrap15mOnlyWhenApproaching || distance < 19.0f)
+            && (!config.DrawTrap15mExceptRevealed || !revealed))
+            drawList.DrawRingWorld(trap.Location, 15f, 1f, config.Trap15mCircleColor);
 
-        if (DalamudApi.Config.DrawTrap36m || (trap.AreaTag == AreaTag.EarthRoom1 || trap.AreaTag == AreaTag.FireRoom1) && distance < 40.0f)
-            drawList.DrawRingWorld(trap.Location, 36f, 1f, DalamudApi.Config.Trap36mCircleColor, true);
+        if (config.DrawTrap36m
+            && (!config.DrawTrap36mOnlyWhenApproaching || distance < 40.0f)
+            && (!config.DrawTrap36mExceptRevealed || !revealed))
+            drawList.DrawRingWorld(trap.Location, 36f, 1f, config.Trap36mCircleColor, true);
     }
     
-    public static void DrawTraps(this ImDrawListPtr drawList, IEnumerable<Trap> traps, bool revealed = false)
+    public void DrawTraps(ImDrawListPtr drawList, IEnumerable<Trap> traps, bool revealed = false)
     {
-        foreach(var trap in traps.Where(trap => trap.ShouldDraw && trap.Location.Distance2D(Common.MeWorldPos) < DalamudApi.Config.TrapViewDistance))
-            drawList.DrawTrap(trap, revealed);
+        foreach(var trap in traps)
+            DrawTrap(drawList, trap, revealed);
     }
 
-    public static void DrawAreaBorder(this ImDrawListPtr drawList, AreaTag areaTag)
+    public void DrawAreaBorder(ImDrawListPtr drawList, AreaTag areaTag)
     {
         if (Area.TryGet(areaTag, out var area))
-            drawList.DrawAreaBorder(area);
+            DrawAreaBorder(drawList, area);
     }
 
-    public static void DrawAreaBorder(this ImDrawListPtr drawList, Area area)
+    public void DrawAreaBorder(ImDrawListPtr drawList, Area area)
     {
         drawList.DrawRectWorld(area.Origin, area.Dims);
     }
     
-    public static void DrawAllAreasBorder(this ImDrawListPtr drawList)
+    public void DrawAllAreasBorder(ImDrawListPtr drawList)
     {
-        drawList.DrawAreaBorder(AreaTag.Entry);
-        drawList.DrawAreaBorder(AreaTag.CorridorFromArt);
-        drawList.DrawAreaBorder(AreaTag.CorridorFromOwain);
-        drawList.DrawAreaBorder(AreaTag.CircularPlatform);
-        drawList.DrawAreaBorder(AreaTag.OctagonRoomFromRaiden);
-        drawList.DrawAreaBorder(AreaTag.OctagonRoomToRoomGroup1);
-        drawList.DrawAreaBorder(AreaTag.RoomGroup1);
-        drawList.DrawAreaBorder(AreaTag.IceRoom1);
-        drawList.DrawAreaBorder(AreaTag.LightningRoom1);
-        drawList.DrawAreaBorder(AreaTag.FireRoom1);
-        drawList.DrawAreaBorder(AreaTag.WaterRoom1);
-        drawList.DrawAreaBorder(AreaTag.WindRoom1);
-        drawList.DrawAreaBorder(AreaTag.EarthRoom1);
-        drawList.DrawAreaBorder(AreaTag.OctagonRoomToRoomGroup2);
-        drawList.DrawAreaBorder(AreaTag.RoomGroup2);
-        drawList.DrawAreaBorder(AreaTag.IceRoom2);
-        drawList.DrawAreaBorder(AreaTag.LightningRoom2);
-        drawList.DrawAreaBorder(AreaTag.FireRoom2);
-        drawList.DrawAreaBorder(AreaTag.WaterRoom2);
-        drawList.DrawAreaBorder(AreaTag.WindRoom2);
-        drawList.DrawAreaBorder(AreaTag.EarthRoom2);
+        DrawAreaBorder(drawList, AreaTag.Entry);
+        DrawAreaBorder(drawList, AreaTag.CorridorFromArt);
+        DrawAreaBorder(drawList, AreaTag.CorridorFromOwain);
+        DrawAreaBorder(drawList, AreaTag.CircularPlatform);
+        DrawAreaBorder(drawList, AreaTag.OctagonRoomFromRaiden);
+        DrawAreaBorder(drawList, AreaTag.OctagonRoomToRoomGroup1);
+        DrawAreaBorder(drawList, AreaTag.RoomGroup1);
+        DrawAreaBorder(drawList, AreaTag.IceRoom1);
+        DrawAreaBorder(drawList, AreaTag.LightningRoom1);
+        DrawAreaBorder(drawList, AreaTag.FireRoom1);
+        DrawAreaBorder(drawList, AreaTag.WaterRoom1);
+        DrawAreaBorder(drawList, AreaTag.WindRoom1);
+        DrawAreaBorder(drawList, AreaTag.EarthRoom1);
+        DrawAreaBorder(drawList, AreaTag.OctagonRoomToRoomGroup2);
+        DrawAreaBorder(drawList, AreaTag.RoomGroup2);
+        DrawAreaBorder(drawList, AreaTag.IceRoom2);
+        DrawAreaBorder(drawList, AreaTag.LightningRoom2);
+        DrawAreaBorder(drawList, AreaTag.FireRoom2);
+        DrawAreaBorder(drawList, AreaTag.WaterRoom2);
+        DrawAreaBorder(drawList, AreaTag.WindRoom2);
+        DrawAreaBorder(drawList, AreaTag.EarthRoom2);
     }
     
-    public static void DrawAreaScanningSpots(this ImDrawListPtr drawList, AreaTag areaTag)
+    public void DrawAreaScanningSpots(ImDrawListPtr drawList, AreaTag areaTag)
     {
         if (Area.TryGet(areaTag, out var area) && area.ShowScanningSpot)
         {
-            foreach(var (Center, Radius, Tip) in area.ScanningSpots.Where(p => p.Center.Distance2D(Common.MeWorldPos) < DalamudApi.Config.TrapViewDistance))
+            foreach(var (Center, Radius, Tip) in area.ScanningSpots.Where(p => p.Center.Distance2D(Common.MeWorldPos) < config.TrapViewDistance))
             {
                 var filled = Center.Distance2D(Common.MeWorldPos) <= Radius;
                 if (filled)
-                    drawList.DrawRingWorld(Center, Radius, 1.5f, DalamudApi.Config.ScanningSpotColor.SetAlpha(0.20f), filled: filled);
-                drawList.DrawRingWorldWithText(Center, Radius, 1.5f, DalamudApi.Config.ScanningSpotColor, Tip);
-                if (DalamudApi.Config.DrawScanningSpot15m)
+                    drawList.DrawRingWorld(Center, Radius, 1.5f, config.ScanningSpotColor.SetAlpha(0.20f), filled: filled);
+                drawList.DrawRingWorldWithText(Center, Radius, 1.5f, config.ScanningSpotColor, Tip);
+                if (config.DrawScanningSpot15m)
                 {
-                    drawList.DrawRingWorld(Center, 15.0f - Radius, 1.5f, DalamudApi.Config.ScanningSpot15mCircleColor);
+                    drawList.DrawRingWorld(Center, 15.0f - Radius, 1.5f, config.ScanningSpot15mCircleColor);
                 }
-                if (DalamudApi.Config.DrawScanningSpot36m)
+                if (config.DrawScanningSpot36m)
                 {
-                    drawList.DrawRingWorld(Center, 36.0f - Radius, 1.5f, DalamudApi.Config.ScanningSpot36mCircleColor);
+                    drawList.DrawRingWorld(Center, 36.0f - Radius, 1.5f, config.ScanningSpot36mCircleColor);
                 }
             }
         }
     }
     
-    public static void DrawAllScanningSpots(this ImDrawListPtr drawList)
+    public void DrawAllScanningSpots(ImDrawListPtr drawList)
     {
-        drawList.DrawAreaScanningSpots(AreaTag.CorridorFromArt);
-        drawList.DrawAreaScanningSpots(AreaTag.CorridorFromOwain);
-        drawList.DrawAreaScanningSpots(AreaTag.CircularPlatform);
-        drawList.DrawAreaScanningSpots(AreaTag.OctagonRoomFromRaiden);
-        drawList.DrawAreaScanningSpots(AreaTag.OctagonRoomToRoomGroup1);   
-        drawList.DrawAreaScanningSpots(AreaTag.FireRoom1);
-        drawList.DrawAreaScanningSpots(AreaTag.EarthRoom1);
-        drawList.DrawAreaScanningSpots(AreaTag.LightningRoom1);
-        drawList.DrawAreaScanningSpots(AreaTag.WindRoom1);
-        drawList.DrawAreaScanningSpots(AreaTag.IceRoom1);
-        drawList.DrawAreaScanningSpots(AreaTag.WaterRoom1);
-        drawList.DrawAreaScanningSpots(AreaTag.OctagonRoomToRoomGroup2);
-        drawList.DrawAreaScanningSpots(AreaTag.IceRoom2);
-        drawList.DrawAreaScanningSpots(AreaTag.LightningRoom2);
-        drawList.DrawAreaScanningSpots(AreaTag.FireRoom2);
-        drawList.DrawAreaScanningSpots(AreaTag.WaterRoom2);
-        drawList.DrawAreaScanningSpots(AreaTag.WindRoom2);
-        drawList.DrawAreaScanningSpots(AreaTag.EarthRoom2);
+        DrawAreaScanningSpots(drawList, AreaTag.CorridorFromArt);
+        DrawAreaScanningSpots(drawList, AreaTag.CorridorFromOwain);
+        DrawAreaScanningSpots(drawList, AreaTag.CircularPlatform);
+        DrawAreaScanningSpots(drawList, AreaTag.OctagonRoomFromRaiden);
+        DrawAreaScanningSpots(drawList, AreaTag.OctagonRoomToRoomGroup1);   
+        DrawAreaScanningSpots(drawList, AreaTag.FireRoom1);
+        DrawAreaScanningSpots(drawList, AreaTag.EarthRoom1);
+        DrawAreaScanningSpots(drawList, AreaTag.LightningRoom1);
+        DrawAreaScanningSpots(drawList, AreaTag.WindRoom1);
+        DrawAreaScanningSpots(drawList, AreaTag.IceRoom1);
+        DrawAreaScanningSpots(drawList, AreaTag.WaterRoom1);
+        DrawAreaScanningSpots(drawList, AreaTag.OctagonRoomToRoomGroup2);
+        DrawAreaScanningSpots(drawList, AreaTag.IceRoom2);
+        DrawAreaScanningSpots(drawList, AreaTag.LightningRoom2);
+        DrawAreaScanningSpots(drawList, AreaTag.FireRoom2);
+        DrawAreaScanningSpots(drawList, AreaTag.WaterRoom2);
+        DrawAreaScanningSpots(drawList, AreaTag.WindRoom2);
+        DrawAreaScanningSpots(drawList, AreaTag.EarthRoom2);
     }
 }

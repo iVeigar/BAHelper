@@ -179,6 +179,9 @@ public sealed class MainWindow(TrapperService trapperService, PartyService porta
                     ImGui.SameLine();
                     ImGui.Text("即死雷");
 
+                    ImGui.SameLine();
+                    ImGui.Spacing();
+
                     var smallBombColorV4 = ImGui.ColorConvertU32ToFloat4(config.TrapSmallBombColor);
                     if (ImGuiUtils.ColorPickerWithPalette(2, "", ref smallBombColorV4))
                     {
@@ -197,6 +200,9 @@ public sealed class MainWindow(TrapperService trapperService, PartyService porta
                     ImGui.SameLine();
                     ImGui.Text("传送门");
 
+                    ImGui.SameLine();
+                    ImGui.Spacing();
+
                     var discoveredTrapColorV4 = ImGui.ColorConvertU32ToFloat4(config.RevealedTrapColor);
                     if (ImGuiUtils.ColorPickerWithPalette(4, "", ref discoveredTrapColorV4))
                     {
@@ -209,7 +215,14 @@ public sealed class MainWindow(TrapperService trapperService, PartyService porta
             }
 
             save |= ImGui.Checkbox("绘制陷阱爆炸波及范围", ref config.DrawTrapBlastCircle);
-            
+            if (config.DrawTrapBlastCircle)
+            {
+                using (ImRaii.PushIndent())
+                {
+                    save |= ImGui.Checkbox("仅当接近陷阱时", ref config.DrawTrapBlastCircleOnlyWhenApproaching);
+                }
+            }
+
             save |= ImGui.Checkbox("绘制陷阱15m半径提示圈", ref config.DrawTrap15m);
             ImGui.SameLine();
             var trap15mCircleColorV4 = ImGui.ColorConvertU32ToFloat4(config.Trap15mCircleColor);
@@ -217,6 +230,14 @@ public sealed class MainWindow(TrapperService trapperService, PartyService porta
             {
                 save = true;
                 config.Trap15mCircleColor = ImGui.ColorConvertFloat4ToU32(trap15mCircleColorV4);
+            }
+            if (config.DrawTrap15m)
+            {
+                using (ImRaii.PushIndent())
+                {
+                    save |= ImGui.Checkbox("仅当接近陷阱时", ref config.DrawTrap15mOnlyWhenApproaching);
+                    save |= ImGui.Checkbox("已探出/踩过的陷阱除外", ref config.DrawTrap15mExceptRevealed);
+                }
             }
 
             save |= ImGui.Checkbox("绘制陷阱36m半径提示圈", ref config.DrawTrap36m);
@@ -226,6 +247,14 @@ public sealed class MainWindow(TrapperService trapperService, PartyService porta
             {
                 save = true;
                 config.Trap36mCircleColor = ImGui.ColorConvertFloat4ToU32(trap36mCircleColorV4);
+            }
+            if (config.DrawTrap36m)
+            {
+                using (ImRaii.PushIndent())
+                {
+                    save |= ImGui.Checkbox("仅当接近陷阱时", ref config.DrawTrap36mOnlyWhenApproaching);
+                    save |= ImGui.Checkbox("已探出/踩过的陷阱除外", ref config.DrawTrap36mExceptRevealed);
+                }
             }
 
             save |= ImGui.Checkbox("绘制探景推荐点位", ref config.DrawRecommendedScanningSpots);
@@ -267,7 +296,7 @@ public sealed class MainWindow(TrapperService trapperService, PartyService porta
                         config.NormalAggroColor = ImGui.ColorConvertFloat4ToU32(normalColorV4);
                     }
                     ImGui.SameLine();
-                    ImGui.Text("视觉仇恨范围颜色");
+                    ImGui.Text("视觉仇恨");
 
                     var soundColorV4 = ImGui.ColorConvertU32ToFloat4(config.SoundAggroColor);
                     if (ImGuiUtils.ColorPickerWithPalette(11, "", ref soundColorV4))
@@ -276,7 +305,8 @@ public sealed class MainWindow(TrapperService trapperService, PartyService porta
                         config.SoundAggroColor = ImGui.ColorConvertFloat4ToU32(soundColorV4);
                     }
                     ImGui.SameLine();
-                    ImGui.Text("听觉/碰撞仇恨范围颜色");
+                    ImGui.Spacing();
+                    ImGui.Text("听觉/碰撞仇恨");
                 }
             }
             save |= ImGui.Checkbox("显示区域边框(调试用)", ref config.DrawAreaBorder);

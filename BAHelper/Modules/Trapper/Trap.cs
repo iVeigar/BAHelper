@@ -27,7 +27,7 @@ public class Trap : IEquatable<Trap>
 
     public AreaTag AreaTag { get; init; }
 
-    public bool ShouldDraw { get; set; } = true;
+    public bool Enabled { get; set; } = true;
 
     private int _id = -1;
 
@@ -110,7 +110,7 @@ public class Trap : IEquatable<Trap>
     public static void ResetAll()
     {
         foreach(var (_, trap) in AllTraps)
-            trap.ShouldDraw = true;
+            trap.Enabled = true;
     }
 
     public static void UpdateByScanResult(Vector3 center, ScanResult lastScanResult)
@@ -120,7 +120,7 @@ public class Trap : IEquatable<Trap>
 
         List<int> trapsIn15y = [];
         List<int> trapsBetween15yAnd36y = [];
-        foreach (var trap in AllTraps.Values.Where(t => t.ShouldDraw == true))
+        foreach (var trap in AllTraps.Values.Where(t => t.Enabled == true))
         {
             var distance = trap.Location.Distance2D(center);
             if (distance <= 15.0f)
@@ -132,8 +132,8 @@ public class Trap : IEquatable<Trap>
         // 36y内无陷阱
         if (lastScanResult == ScanResult.NotSense)
         {
-            trapsIn15y.ForEach(t => AllTraps[t].ShouldDraw = false);
-            trapsBetween15yAnd36y.ForEach(t => AllTraps[t].ShouldDraw = false);
+            trapsIn15y.ForEach(t => AllTraps[t].Enabled = false);
+            trapsBetween15yAnd36y.ForEach(t => AllTraps[t].Enabled = false);
         }
         // 15y内无陷阱; 15y-36y有陷阱
         else if (lastScanResult == ScanResult.Sense)
@@ -143,22 +143,22 @@ public class Trap : IEquatable<Trap>
                 if (TrapSets[0].IsSupersetOf(trapsIn15y))
                 {
                     foreach (var id in GetComplementarySet(Enumerable.Range(0, 3).Except(trapsIn15y.Select(id => id % 3).ToHashSet())))
-                        AllTraps[id].ShouldDraw = false;
+                        AllTraps[id].Enabled = false;
                 }
                 else
                 {
-                    trapsIn15y.ForEach(id => AllTraps[id].ShouldDraw = false);
+                    trapsIn15y.ForEach(id => AllTraps[id].Enabled = false);
                 }
             }
             if (trapsBetween15yAnd36y.Count > 0)
             {
                 foreach (var id in GetComplementarySet(trapsBetween15yAnd36y))
-                    AllTraps[id].ShouldDraw = false;
+                    AllTraps[id].Enabled = false;
             }
         }
         else if (lastScanResult == ScanResult.Discover)
         {
-            trapsIn15y.ForEach(id => AllTraps[id].ShouldDraw = false);
+            trapsIn15y.ForEach(id => AllTraps[id].Enabled = false);
         }
     }
 

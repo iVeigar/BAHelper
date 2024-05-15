@@ -23,8 +23,13 @@ namespace BAHelper
         public float TrapViewDistance = 100f;
         public bool DrawRecordedTraps = false;
         public bool DrawTrapBlastCircle = false;
+        public bool DrawTrapBlastCircleOnlyWhenApproaching = false;
         public bool DrawTrap15m = false;
+        public bool DrawTrap15mOnlyWhenApproaching = false;
+        public bool DrawTrap15mExceptRevealed = false;
         public bool DrawTrap36m = false;
+        public bool DrawTrap36mOnlyWhenApproaching = false;
+        public bool DrawTrap36mExceptRevealed = false;
         public bool DrawRecommendedScanningSpots = false;
         public bool DrawScanningSpot15m = false;
         public bool DrawScanningSpot36m = false;
