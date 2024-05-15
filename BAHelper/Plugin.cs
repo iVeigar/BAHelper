@@ -42,9 +42,7 @@ public unsafe sealed class Plugin : IDalamudPlugin
     public static void PrintMessage(SeString message, XivChatType type=XivChatType.Echo)
     {
         var sb = new SeStringBuilder()
-            .AddUiForeground(60)
-            .AddText($"[兵武塔助手] ")
-            .AddUiForegroundOff()
+            .AddUiForeground("[兵武塔助手] ", 60)
             .Append(message);
 
         DalamudApi.ChatGui.Print(new XivChatEntry()

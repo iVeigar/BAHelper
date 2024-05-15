@@ -4,7 +4,6 @@ using System.IO;
 using System.IO.Compression;
 using System.Numerics;
 using System.Text;
-using Dalamud;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Utility;

@@ -175,13 +175,10 @@ public sealed partial class TrapperService : IDisposable
     private static void ShowRoomGroup1Toast(AreaTag areaTag, bool isChest = true)
     {
         var toast = $"{areaTag.Description()}{(isChest ? "箱" : "门")}！";
-        if (!string.IsNullOrEmpty(toast))
-        {
-            var sb = new SeStringBuilder().AddText(toast);
-            DalamudApi.ToastGui.ShowQuest(sb.BuiltString);
-            Plugin.PrintMessage(sb.BuiltString);
-            SoundManager.PlaySoundEffect(SoundEffect.SE_1);
-        }
+        var sb = new SeStringBuilder().AddText(toast);
+        DalamudApi.ToastGui.ShowQuest(sb.BuiltString);
+        Plugin.PrintMessage(sb.BuiltString);
+        SoundManager.PlaySoundEffect(SoundEffect.SE_1);
     }
     
     private bool CheckTrapObject(GameObject obj, AreaTag areaTag)
