@@ -107,7 +107,7 @@ public sealed partial class TrapperService : IDisposable
     private void CheckPortalStatus()
     {
         PossibleAreasOfPortal.Clear();
-        foreach (var portal in Trap.AllTraps.Select(kv => kv.Value).Where(p => p.Type == TrapType.Portal && p.Enabled))
+        foreach (var portal in Trap.AllTraps.Select(kv => kv.Value).Where(p => p.Type == TrapType.Portal && p.State == TrapState.NotScanned))
         {
             PossibleAreasOfPortal.Add(portal.AreaTag);
         }
@@ -119,7 +119,6 @@ public sealed partial class TrapperService : IDisposable
         if (config.DrawRecordedTraps)
         {
             DrawTraps(drawList, Trap.AllTraps.Values);
-            DrawTraps(drawList, TrapRevealed, true);
         }
         if (config.DrawAreaBorder)
         {
@@ -205,7 +204,7 @@ public sealed partial class TrapperService : IDisposable
             {
                 Type = trapType,
                 Location = obj.Position,
-                Enabled = true,
+                State = TrapState.Revealed,
                 AreaTag = areaTag,
             });
             return true;
@@ -220,9 +219,9 @@ public sealed partial class TrapperService : IDisposable
 
         if (revealedTrap.IsInRecords)
         {
-            Trap.AllTraps[revealedTrap.ID].Enabled = false;
+            Trap.AllTraps[revealedTrap.ID].State = revealedTrap.State;
             foreach (var id in revealedTrap.GetComplementarySet())
-                Trap.AllTraps[id].Enabled = false;
+                Trap.AllTraps[id].State = TrapState.Disabled;
 
             if (revealedTrap.Type == TrapType.Portal)
                 ShowRoomGroup1Toast(revealedTrap.AreaTag, false);
@@ -235,7 +234,7 @@ public sealed partial class TrapperService : IDisposable
             // 新点位只可能在那两个只有一个易伤雷的房间
             if (Area.TryGet(revealedTrap.AreaTag, out var area))
             {
-                area.Traps.ForEach(trap => {trap.Enabled = false;});
+                area.Traps.ForEach(trap => {trap.State = TrapState.Disabled; });
             }
         }
     }
@@ -288,9 +287,9 @@ public sealed partial class TrapperService : IDisposable
         }
     }
     
-    public void DrawTrap(ImDrawListPtr drawList, Trap trap, bool revealed)
+    public void DrawTrap(ImDrawListPtr drawList, Trap trap)
     {
-        if (!trap.Enabled)
+        if (trap.State == TrapState.Disabled)
             return;
 
         var distance = trap.Location.Distance2D(Common.MeWorldPos);
@@ -309,26 +308,26 @@ public sealed partial class TrapperService : IDisposable
             && (!config.DrawTrapBlastCircleOnlyWhenApproaching || distance < trap.BlastRadius + 4.0f))
             drawList.DrawRingWorld(trap.Location, trap.BlastRadius, 1.3f, color.SetAlpha(0.5f));
 
-        if (revealed)
+        if (trap.State == TrapState.Revealed)
             color = config.RevealedTrapColor;
         if (drawList.DrawRingWorld(trap.Location, trap.HitBoxRadius, 1.5f, color) && inView)
             drawList.AddCircleFilled(screenPos, 1.5f, color); // 画中心点
 
         if (config.DrawTrap15m
             && (!config.DrawTrap15mOnlyWhenApproaching || distance < 19.0f)
-            && (!config.DrawTrap15mExceptRevealed || !revealed))
+            && (!config.DrawTrap15mExceptRevealed || trap.State != TrapState.Revealed))
             drawList.DrawRingWorld(trap.Location, 15f, 1f, config.Trap15mCircleColor);
 
         if (config.DrawTrap36m
             && (!config.DrawTrap36mOnlyWhenApproaching || distance < 40.0f)
-            && (!config.DrawTrap36mExceptRevealed || !revealed))
+            && (!config.DrawTrap36mExceptRevealed || trap.State != TrapState.Revealed))
             drawList.DrawRingWorld(trap.Location, 36f, 1f, config.Trap36mCircleColor, true);
     }
     
-    public void DrawTraps(ImDrawListPtr drawList, IEnumerable<Trap> traps, bool revealed = false)
+    public void DrawTraps(ImDrawListPtr drawList, IEnumerable<Trap> traps)
     {
         foreach(var trap in traps)
-            DrawTrap(drawList, trap, revealed);
+            DrawTrap(drawList, trap);
     }
 
     public void DrawAreaBorder(ImDrawListPtr drawList, AreaTag areaTag)

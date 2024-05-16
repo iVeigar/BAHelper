@@ -1,10 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
 
 namespace BAHelper.Modules.Trapper;
 
+public enum TrapState
+{
+    NotScanned,
+    Revealed,
+    Disabled
+}
 public enum TrapType
 {
     None,
@@ -27,7 +34,7 @@ public class Trap : IEquatable<Trap>
 
     public AreaTag AreaTag { get; init; }
 
-    public bool Enabled { get; set; } = true;
+    public TrapState State { get; set; } = TrapState.NotScanned;
 
     private int _id = -1;
 
@@ -47,8 +54,8 @@ public class Trap : IEquatable<Trap>
 
     public float BlastRadius => Type switch
     {
-        TrapType.BigBomb => 7.0f,
-        TrapType.SmallBomb => 9.0f,
+        TrapType.BigBomb => 7.0f, // verified
+        TrapType.SmallBomb => 7.0f, // need verify
         TrapType.Portal => 1.0f,
         _ => 0.0f
     };
@@ -110,7 +117,7 @@ public class Trap : IEquatable<Trap>
     public static void ResetAll()
     {
         foreach(var (_, trap) in AllTraps)
-            trap.Enabled = true;
+            trap.State = TrapState.NotScanned;
     }
 
     public static void UpdateByScanResult(Vector3 center, ScanResult lastScanResult)
@@ -120,7 +127,7 @@ public class Trap : IEquatable<Trap>
 
         List<int> trapsIn15y = [];
         List<int> trapsBetween15yAnd36y = [];
-        foreach (var trap in AllTraps.Values.Where(t => t.Enabled == true))
+        foreach (var trap in AllTraps.Values.Where(t => t.State == TrapState.NotScanned))
         {
             var distance = trap.Location.Distance2D(center);
             if (distance <= 15.0f)
@@ -132,8 +139,8 @@ public class Trap : IEquatable<Trap>
         // 36y内无陷阱
         if (lastScanResult == ScanResult.NotSense)
         {
-            trapsIn15y.ForEach(t => AllTraps[t].Enabled = false);
-            trapsBetween15yAnd36y.ForEach(t => AllTraps[t].Enabled = false);
+            trapsIn15y.ForEach(t => AllTraps[t].State = TrapState.Disabled);
+            trapsBetween15yAnd36y.ForEach(t => AllTraps[t].State = TrapState.Disabled);
         }
         // 15y内无陷阱; 15y-36y有陷阱
         else if (lastScanResult == ScanResult.Sense)
@@ -143,22 +150,22 @@ public class Trap : IEquatable<Trap>
                 if (TrapSets[0].IsSupersetOf(trapsIn15y))
                 {
                     foreach (var id in GetComplementarySet(Enumerable.Range(0, 3).Except(trapsIn15y.Select(id => id % 3).ToHashSet())))
-                        AllTraps[id].Enabled = false;
+                        AllTraps[id].State = TrapState.Disabled;
                 }
                 else
                 {
-                    trapsIn15y.ForEach(id => AllTraps[id].Enabled = false);
+                    trapsIn15y.ForEach(id => AllTraps[id].State = TrapState.Disabled);
                 }
             }
             if (trapsBetween15yAnd36y.Count > 0)
             {
                 foreach (var id in GetComplementarySet(trapsBetween15yAnd36y))
-                    AllTraps[id].Enabled = false;
+                    AllTraps[id].State = TrapState.Disabled;
             }
         }
         else if (lastScanResult == ScanResult.Discover)
         {
-            trapsIn15y.ForEach(id => AllTraps[id].Enabled = false);
+            trapsIn15y.ForEach(id => AllTraps[id].State = TrapState.Disabled);
         }
     }
 
