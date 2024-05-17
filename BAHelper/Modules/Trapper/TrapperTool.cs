@@ -1,8 +1,10 @@
 ﻿using System.Linq;
-using BAHelper.Helpers;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
-using Dalamud.Plugin.Services;
+using ECommons.DalamudServices;
+using ECommons.EzEventManager;
+using ECommons.GameHelpers;
+using ECommons.Throttlers;
 using FFXIVClientStructs.FFXIV.Client.Game;
 
 namespace BAHelper.Modules.Trapper;
@@ -10,29 +12,32 @@ namespace BAHelper.Modules.Trapper;
 public class TrapperTool
 {
     public static bool IsRunning { get; private set; } = false;
-
+    private static Configuration Config => Plugin.Config;
     private static bool protectMinded = false;
     private static bool shellMinded = false;
     private static bool canChangeTarget = true;
     private static bool protectCasted = false;
     private static bool shellCasted = false;
 
-    private static readonly Throttle _action = new();
-    private static readonly Throttle _changeTarget = new();
     private static unsafe bool ExecuteActionSafe(ActionType type, uint actionId, ulong targetId = GameObject.InvalidGameObjectId)
-        => _action.Exec(() => ActionManager.Instance()->UseAction(type, actionId, targetId), ActionManager.GetAdjustedRecastTime(type, actionId) + 100);
+    {
+        if (!EzThrottler.Throttle("action", ActionManager.GetAdjustedRecastTime(type, actionId) + 100))
+            return false;
+        ActionManager.Instance()->UseAction(type, actionId, targetId);
+        return true;
+    }
 
     private static bool CastLogoProtect(GameObject? target)
         => ExecuteActionSafe(ActionType.Action, 12969, target?.ObjectId ?? GameObject.InvalidGameObjectId);
-    
+
     private static bool CastLogoShell(GameObject? target)
         => ExecuteActionSafe(ActionType.Action, 12970, target?.ObjectId ?? GameObject.InvalidGameObjectId);
 
     public static PlayerCharacter? NextShieldTarget()
     {
-        var checkStatusProtect = DalamudApi.Config.CheckStatusProtect; 
-        var checkStatusShell = DalamudApi.Config.CheckStatusShell;
-        var timeThreshold = DalamudApi.Config.ShieldRemainingTimeThreshold * 60;
+        var checkStatusProtect = Config.CheckStatusProtect;
+        var checkStatusShell = Config.CheckStatusShell;
+        var timeThreshold = Config.ShieldRemainingTimeThreshold * 60;
         bool check(PlayerCharacter player)
         {
             float protectRemainingTime = 0f;
@@ -64,33 +69,29 @@ public class TrapperTool
         }
         if (checkStatusProtect || checkStatusShell)
         {
-            var current = DalamudApi.TargetManager.Target as PlayerCharacter;
+            var current = Svc.Targets.Target as PlayerCharacter;
             // 排除当前目标, 允许在给当前目标上盾完毕之前就切换目标
-            var target = DalamudApi.ObjectTable
+            var target = Svc.Objects
                 .OfType<PlayerCharacter>()
-                .Where(p => (current is null || p.ObjectId != current.ObjectId) && p.IsTargetable && p.Position.Distance(DalamudApi.ClientState.LocalPlayer.Position) < 25.0f)
-                .FirstOrDefault(check, null);
+                .Where(p => (current is null || p.ObjectId != current.ObjectId) && p.IsTargetable && p.Position.Distance(Common.MeWorldPos) < 25.0f)
+                .FirstOrDefault(check);
             return target;
         }
         return null;
     }
-    public static void Initialize()
+    public TrapperTool()
     {
-        DalamudApi.Framework.Update += Tick;
+        _ = new EzFrameworkUpdate(OnFrameworkUpdate);
     }
-    public static void Dispose()
-    {
-        DalamudApi.Framework.Update -= Tick;
-    }
-    public static void Tick(IFramework framework)
+    public static void OnFrameworkUpdate()
     {
         if (!IsRunning)
             return;
 
-        var checkStatusProtect = DalamudApi.Config.CheckStatusProtect;
-        var checkStatusShell = DalamudApi.Config.CheckStatusShell;
+        var checkStatusProtect = Config.CheckStatusProtect;
+        var checkStatusShell = Config.CheckStatusShell;
 
-        var (action1, action2) = DalamudApi.ClientState.LocalPlayer.CarriedLogoActions();
+        var (action1, action2) = Player.Object.CarriedLogoActions();
         protectMinded = action1 == 12 || action2 == 12;
         shellMinded = action1 == 13 || action2 == 13;
 
@@ -110,28 +111,28 @@ public class TrapperTool
                 IsRunning = false;
                 return;
             }
-            DalamudApi.TargetManager.Target = target;
+            Svc.Targets.Target = target;
             canChangeTarget = false;
             protectCasted = shellCasted = false;
         }
 
-        if (checkStatusProtect && !protectCasted && CastLogoProtect(DalamudApi.TargetManager.Target))
+        if (checkStatusProtect && !protectCasted && CastLogoProtect(Svc.Targets.Target))
         {
             protectCasted = true;
-            _changeTarget.Exec(() => { }, 1000);
+            EzThrottler.Throttle("changeTarget", 1000);
             return;
         }
-        
-        if (checkStatusShell && !shellCasted && CastLogoShell(DalamudApi.TargetManager.Target))
+
+        if (checkStatusShell && !shellCasted && CastLogoShell(Svc.Targets.Target))
         {
             shellCasted = true;
-            _changeTarget.Exec(() => { }, 1000);
+            EzThrottler.Throttle("changeTarget", 1000);
             return;
         }
 
         if ((!checkStatusProtect || protectCasted) && (!checkStatusShell || shellCasted))
         {
-            if(_changeTarget.Exec(() => { }, 1000)) // 延迟1s后切目标
+            if (EzThrottler.Throttle("changeTarget", 1000)) // 延迟1s后切目标
             {
                 canChangeTarget = true;
             }
@@ -146,13 +147,10 @@ public class TrapperTool
 
     public static void Start()
     {
-        DalamudApi.TargetManager.Target = null;
+        Svc.Targets.Target = null;
         canChangeTarget = true;
         IsRunning = true;
     }
 
-    public static void Stop()
-    {
-        IsRunning = false;
-    }
+    public static void Stop() => IsRunning = false;
 }

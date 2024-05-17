@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
+using ECommons;
 
 namespace BAHelper.Modules.Trapper;
 
@@ -82,8 +82,7 @@ public class Trap : IEquatable<Trap>
 
     public bool Equals(Trap other)
     {
-        if (other is null) return false;
-        return Type == other.Type && Location.Distance2D(other.Location) <= 0.01;
+        return other is not null && Type == other.Type && Location.Distance2D(other.Location) <= 0.01;
     }
 
     public override bool Equals(object obj)
@@ -113,10 +112,10 @@ public class Trap : IEquatable<Trap>
         }
         return TrapSets.Skip(1).FirstOrDefault(set => set.IsSupersetOf(source), []).Except(source);
     }
-    
+
     public static void ResetAll()
     {
-        foreach(var (_, trap) in AllTraps)
+        foreach (var (_, trap) in AllTraps)
             trap.State = TrapState.NotScanned;
     }
 
@@ -139,8 +138,8 @@ public class Trap : IEquatable<Trap>
         // 36y内无陷阱
         if (lastScanResult == ScanResult.NotSense)
         {
-            trapsIn15y.ForEach(t => AllTraps[t].State = TrapState.Disabled);
-            trapsBetween15yAnd36y.ForEach(t => AllTraps[t].State = TrapState.Disabled);
+            trapsIn15y.Each(t => AllTraps[t].State = TrapState.Disabled);
+            trapsBetween15yAnd36y.Each(t => AllTraps[t].State = TrapState.Disabled);
         }
         // 15y内无陷阱; 15y-36y有陷阱
         else if (lastScanResult == ScanResult.Sense)
@@ -149,23 +148,21 @@ public class Trap : IEquatable<Trap>
             {
                 if (TrapSets[0].IsSupersetOf(trapsIn15y))
                 {
-                    foreach (var id in GetComplementarySet(Enumerable.Range(0, 3).Except(trapsIn15y.Select(id => id % 3).ToHashSet())))
-                        AllTraps[id].State = TrapState.Disabled;
+                    GetComplementarySet(Enumerable.Range(0, 3).Except(trapsIn15y.Select(id => id % 3).ToHashSet())).Each(id => AllTraps[id].State = TrapState.Disabled);
                 }
                 else
                 {
-                    trapsIn15y.ForEach(id => AllTraps[id].State = TrapState.Disabled);
+                    trapsIn15y.Each(id => AllTraps[id].State = TrapState.Disabled);
                 }
             }
             if (trapsBetween15yAnd36y.Count > 0)
             {
-                foreach (var id in GetComplementarySet(trapsBetween15yAnd36y))
-                    AllTraps[id].State = TrapState.Disabled;
+                GetComplementarySet(trapsBetween15yAnd36y).Each(id => AllTraps[id].State = TrapState.Disabled);
             }
         }
         else if (lastScanResult == ScanResult.Discover)
         {
-            trapsIn15y.ForEach(id => AllTraps[id].State = TrapState.Disabled);
+            trapsIn15y.Each(id => AllTraps[id].State = TrapState.Disabled);
         }
     }
 

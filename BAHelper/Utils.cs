@@ -1,22 +1,19 @@
 ﻿using System;
-using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Numerics;
 using System.Text;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
-using Dalamud.Utility;
+using ECommons.DalamudServices;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using Lumina.Excel;
-using Lumina.Excel.GeneratedSheets;
 using Newtonsoft.Json;
-using LuminaSeString = Lumina.Text.SeString;
 
 namespace BAHelper;
 
 public static class Utils
-{    
+{
     public static SeString CreateItemLink(uint itemId, bool isHq = false, string? displayNameOverride = null)
     {
         var itemLink = SeString.CreateItemLink(itemId, isHq, displayNameOverride);
@@ -26,7 +23,7 @@ public static class Utils
             .Add(RawPayload.LinkTerminator)
             .BuiltString;
     }
-    
+
     public static SeString CreateMapLink(uint territoryId, uint mapId, Vector2 position)
     {
         return SeString.CreateMapLink(territoryId, mapId, position.X, position.Y);
@@ -39,55 +36,28 @@ public static class Utils
         AgentMap.Instance()->SetFlagMapMarker(territoryId, mapId, mapLinkPayload.RawX / 1000f, mapLinkPayload.RawY / 1000f);
     }
 
-    public static string GetItemName(uint itemId)
-    {
-        return GetSheetRow<Item>(itemId)!.Name.ToDalamudString().ToString();
-    }
-    
-    public static string GetJobCategory(uint itemId)
-    {
-        return GetSheetRow<Item>(itemId)!.ClassJobCategory.Value.Name.ToDalamudString().ToString();
-    }
-    
     public static T? GetSheetRow<T>(uint row) where T : ExcelRow
     {
-        return DalamudApi.DataManager.Excel.GetSheet<T>()!.GetRow(row);
+        return Svc.Data.GetExcelSheet<T>()!.GetRow(row);
     }
-
-    public static string FromSeString(LuminaSeString text) => text.ToDalamudString().ToString();
 
     public static Vector2 ToVector2(this Vector3 v) => new(v.X, v.Z);
 
-    public static Vector3 ToVector3(this Vector2 vin) => new(vin.X, 0f, vin.Y);
+    public static Vector3 ToVector3(this Vector2 v) => new(v.X, 0f, v.Y);
+
+    public static Vector3 ToVector3(this Vector2 v, float Y) => new(v.X, Y, v.Y);
 
     public static float Distance(this Vector3 v, Vector3 v2) => Vector3.Distance(v, v2);
 
     public static float Distance2D(this Vector3 v, Vector3 v2) => Vector2.Distance(v.ToVector2(), v2.ToVector2());
 
-    internal static bool ContainsIgnoreCase(this string haystack, string needle)
-    {
-        return CultureInfo.InvariantCulture.CompareInfo.IndexOf(haystack, needle, CompareOptions.IgnoreCase) >= 0;
-    }
+    public static uint SetAlpha(this uint color32, uint alpha) => (color32 << 8 >> 8) + (alpha << 24);
 
-    public static uint SetAlpha(this uint color32, uint alpha)
-    {
-        return (color32 << 8 >> 8) + (alpha << 24);
-    }
-    
-    public static uint SetAlpha(this uint color32, float alpha)
-    {
-        return color32.SetAlpha((uint)(255 * alpha));
-    }
-    
-    public static uint Invert(this uint color32)
-    {
-        return (uint.MaxValue - (color32 << 8) >> 8) + (color32 >> 24 << 24);
-    }
+    public static uint SetAlpha(this uint color32, float alpha) => color32.SetAlpha((uint)(255 * alpha));
 
-    public static Vector2 Normalize(this Vector2 v)
-    {
-        return Vector2.Normalize(v);
-    }
+    public static uint Invert(this uint color32) => (uint.MaxValue ^ color32) & 0xffffff | color32 & 0xff000000;
+
+    public static Vector2 Normalize(this Vector2 v) => Vector2.Normalize(v);
 
     public static Vector2 Zoom(this Vector2 vin, float zoom, Vector2 origin = default)
     {
@@ -98,14 +68,14 @@ public static class Utils
     {
         var rotation = rad.ToNormalizedVector2();
         var diff = vin - pivot;
-        return pivot + new Vector2(rotation.Y * diff.X + rotation.X * diff.Y, rotation.Y * diff.Y - rotation.X * diff.X);
+        return pivot + new Vector2(rotation.Y * diff.X - rotation.X * diff.Y, rotation.Y * diff.Y + rotation.X * diff.X);
     }
 
     public static Vector2 Rotate(this Vector2 vin, Vector2 rotation, Vector2 pivot = default)
     {
         rotation = rotation.Normalize();
         var diff = vin - pivot;
-        return pivot + new Vector2(rotation.Y * diff.X + rotation.X * diff.Y, rotation.Y * diff.Y - rotation.X * diff.X);
+        return pivot + new Vector2(rotation.Y * diff.X - rotation.X * diff.Y, rotation.Y * diff.Y + rotation.X * diff.X);
     }
 
     public static float ToArc(this Vector2 vin) => MathF.Sin(vin.X);
@@ -127,32 +97,32 @@ public static class Utils
     }
 
     public static Vector2 ToNormalizedVector2(this float rad) => new(MathF.Sin(rad), MathF.Cos(rad));
-    
-    public static string GetRelative(this nint i)
+
+    public static string GetRelativeAddress(this nint i)
     {
-        return (i.ToInt64() - DalamudApi.SigScanner.Module.BaseAddress.ToInt64()).ToString("X");
+        return (i.ToInt64() - Svc.SigScanner.Module.BaseAddress.ToInt64()).ToString("X");
     }
-    
+
     public static string ToCompressedString<T>(this T obj)
     {
         return Compress(obj.ToJsonString());
     }
-    
+
     public static T? DecompressStringToObject<T>(this string compressedString)
     {
         return Decompress(compressedString).JsonStringToObject<T>();
     }
-    
+
     public static string ToJsonString(this object? obj)
     {
         return JsonConvert.SerializeObject(obj);
     }
-    
+
     public static T? JsonStringToObject<T>(this string str)
     {
         return JsonConvert.DeserializeObject<T>(str);
     }
-    
+
     public static string Compress(string s)
     {
         string result;
@@ -167,7 +137,7 @@ public static class Utils
         }
         return result;
     }
-    
+
     public static string Decompress(string s)
     {
         string @string;

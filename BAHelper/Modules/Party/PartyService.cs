@@ -1,9 +1,11 @@
 ﻿using System.Collections.Generic;
+using ECommons.Automation;
 using ECommons.Automation.LegacyTaskManager;
 namespace BAHelper.Modules.Party;
 
 public class PartyService
 {
+    private static Configuration Config => Plugin.Config;
     private readonly TaskManager TaskManager = new();
     // note: "Portal" means the unstable / stable portal, not the light-green one in the BA dungeon
     // Global server player
@@ -27,21 +29,21 @@ public class PartyService
         [(29.4f, 26.3f), (33.0f, 27.7f), (37.3f, 27.8f), (30.7f, 28.5f), (32.6f, 28.8f), (35.8f, 29.9f), (30.2f, 30.1f), (31.7f, 29.9f)]
     ];
 
-    
+
     public void SendPortalsToChat(int partyNumber)
     {
-        var portals = DalamudApi.Config.IsCNMoogleDCPlayer ? PortalsMapMoogleDC : PortalsMapGlobal;
-        var channel = DalamudApi.Config.UsePartyChannel ? "p" : "e";
+        var portals = Config.IsCNMoogleDCPlayer ? PortalsMapMoogleDC : PortalsMapGlobal;
+        var channel = Config.UsePartyChannel ? "p" : "e";
         if (partyNumber < 1 || partyNumber > 6)
             return;
-        TaskManager.Enqueue(() => Game.SendMessage($"/{channel} 我们是{partyNumber}队，门图如下："));
+        TaskManager.Enqueue(() => MacroManager.Execute($"/{channel} 我们是{partyNumber}队，门图如下："));
         for (int i = 0; i < 8; i++)
         {
             TaskManager.DelayNext(100);
             var (x, y) = portals[partyNumber - 1][i];
             TaskManager.Enqueue(() => Utils.SetFlagMarker(827, 515, x, y));
             var portalNumber = i + 1;
-            TaskManager.Enqueue(() => Game.SendMessage($"/{channel} {partyNumber}{portalNumber} - <flag>"));
+            TaskManager.Enqueue(() => MacroManager.Execute($"/{channel} {partyNumber}{portalNumber} - <flag>"));
         }
     }
 }

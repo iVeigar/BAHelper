@@ -6,6 +6,7 @@ using System.Numerics;
 using Dalamud.Interface;
 using Dalamud.Interface.Internal;
 using Dalamud.Interface.Utility;
+using ECommons.DalamudServices;
 using ImGuiNET;
 
 namespace BAHelper;
@@ -124,7 +125,7 @@ internal static partial class ImGuiUtils
         {
             var currentRotation = i * CircleSegmentFullRotation;
             var segmentWorld = center + (radius * currentRotation.ToNormalizedVector2()).ToVector3();
-            DalamudApi.GameGui.WorldToScreen(segmentWorld, out var segmentScreen);
+            Svc.GameGui.WorldToScreen(segmentWorld, out var segmentScreen);
             drawList.PathLineTo(segmentScreen);
         }
 
@@ -136,7 +137,7 @@ internal static partial class ImGuiUtils
 
     public static bool DrawRingWorld(this ImDrawListPtr drawList, Vector3 center, float radius, float thickness, uint color, bool drawOffScreen = false, bool filled = false)
     {
-        DalamudApi.GameGui.WorldToScreen(center, out var _, out var inView);
+        Svc.GameGui.WorldToScreen(center, out var _, out var inView);
         if (inView || drawOffScreen)
         {
             drawList.DrawCircleInternal(center, radius, thickness, color, filled);
@@ -146,7 +147,7 @@ internal static partial class ImGuiUtils
 
     public static bool DrawRingWorldWithText(this ImDrawListPtr drawList, Vector3 center, float radius, float thickness, uint color, string text, bool filled = false, Vector2 offset = default, bool drawOffScreen = false)
     {
-        DalamudApi.GameGui.WorldToScreen(center, out var screenPos, out var inView);
+        Svc.GameGui.WorldToScreen(center, out var screenPos, out var inView);
         if (inView || drawOffScreen)
         {
             drawList.DrawCircleInternal(center, radius, thickness, color, filled);
@@ -293,10 +294,10 @@ internal static partial class ImGuiUtils
 
     public static void DrawRectWorld(this ImDrawListPtr drawList, Vector3 origin, Vector3 dims)
     {
-        DalamudApi.GameGui.WorldToScreen(origin, out Vector2 lt);
-        DalamudApi.GameGui.WorldToScreen(origin + new Vector3(dims.X, 0f, 0f), out Vector2 rt);
-        DalamudApi.GameGui.WorldToScreen(origin + dims, out Vector2 rb);
-        DalamudApi.GameGui.WorldToScreen(origin + new Vector3(0, 0f, dims.Z), out Vector2 lb);
+        Svc.GameGui.WorldToScreen(origin, out Vector2 lt);
+        Svc.GameGui.WorldToScreen(origin + new Vector3(dims.X, 0f, 0f), out Vector2 rt);
+        Svc.GameGui.WorldToScreen(origin + dims, out Vector2 rb);
+        Svc.GameGui.WorldToScreen(origin + new Vector3(0, 0f, dims.Z), out Vector2 lb);
 
         drawList.AddPolyline(ref (new Vector2[]
         {
@@ -307,8 +308,8 @@ internal static partial class ImGuiUtils
     {
         Vector2 screenPos = Vector2.Zero;
         var points = (from v in vertices
-                    let r = DalamudApi.GameGui.WorldToScreen(v, out screenPos)
-                    select screenPos).ToArray();
+                      let r = Svc.GameGui.WorldToScreen(v, out screenPos)
+                      select screenPos).ToArray();
 
         drawList.AddPolyline(ref points[0], points.Length, Color.Blue, ImDrawFlags.RoundCornersAll, 1.2f);
     }
@@ -319,13 +320,13 @@ internal static partial class ImGuiUtils
         var partialCircleSegmentRotation = angleRadian / CircleSegments;
         var coneColor = outlineColor.SetAlpha(0.2f);
 
-        DalamudApi.GameGui.WorldToScreen(center, out var originPositionOnScreen);
+        Svc.GameGui.WorldToScreen(center, out var originPositionOnScreen);
         drawList.PathLineTo(originPositionOnScreen);
         for (var i = 0; i <= CircleSegments; i++)
         {
             var currentRotation = rotation - (i * partialCircleSegmentRotation);
             var segmentWorld = center + (radius * currentRotation.ToNormalizedVector2()).ToVector3();
-            DalamudApi.GameGui.WorldToScreen(segmentWorld, out var segmentScreen);
+            Svc.GameGui.WorldToScreen(segmentWorld, out var segmentScreen);
 
             drawList.PathLineTo(segmentScreen);
         }
@@ -338,7 +339,7 @@ internal static partial class ImGuiUtils
         {
             var currentRotation = rotation - (i * partialCircleSegmentRotation);
             var segmentWorld = center + (radius * currentRotation.ToNormalizedVector2()).ToVector3();
-            DalamudApi.GameGui.WorldToScreen(segmentWorld, out var segmentScreen);
+            Svc.GameGui.WorldToScreen(segmentWorld, out var segmentScreen);
 
             drawList.PathLineTo(segmentScreen);
         }

@@ -1,51 +1,51 @@
-﻿using BAHelper.Modules;
-using BAHelper.Modules.Party;
-using BAHelper.Modules.Trapper;
-using BAHelper.Windows;
+﻿using BAHelper.Windows;
 using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using ECommons;
+using ECommons.Commands;
+using ECommons.Configuration;
+using ECommons.DalamudServices;
+using ECommons.Singletons;
 namespace BAHelper;
 
-public unsafe sealed class Plugin : IDalamudPlugin
+public sealed class Plugin : IDalamudPlugin
 {
-    internal readonly WindowSystem WindowSystem;
-    internal readonly MainWindow MainWindow;
-    private readonly TrapperService TrapperService;
-    private readonly PartyService PartyService;
+    private readonly WindowSystem WindowSystem;
+    private readonly MainWindow MainWindow;
+    public static Configuration Config { get; private set; }
+
     public Plugin(DalamudPluginInterface pluginInterface)
     {
         ECommonsMain.Init(pluginInterface, this);
-        DalamudApi.Initialize(pluginInterface, this);
-        Game.Initialize();
-        Common.Initialize();
-        TrapperService = new();
-        TrapperTool.Initialize();
-        PartyService = new();
-        MainWindow = new(TrapperService, PartyService);
+        EzConfig.Migrate<Configuration>();
+        Config = EzConfig.Init<Configuration>();
+
+        SingletonServiceManager.Initialize(typeof(Singletons));
+
+        MainWindow = new();
         WindowSystem = new("BAHelper");
         WindowSystem.AddWindow(MainWindow);
 
-        DalamudApi.PluginInterface.UiBuilder.Draw += DrawUI;
-        DalamudApi.PluginInterface.UiBuilder.OpenMainUi += OpenMainUi;
+        Svc.PluginInterface.UiBuilder.Draw += DrawUI;
+        Svc.PluginInterface.UiBuilder.OpenMainUi += OpenMainUi;
     }
 
-    [Command("/bahelper")]
-    [HelpMessage("开关主窗口")]
+    [Cmd("/bahelper", "开关主窗口")]
     private void ToggleMainWindow(string command, string argument) => MainWindow.IsOpen ^= true;
 
     private void DrawUI() => WindowSystem.Draw();
+
     private void OpenMainUi() => MainWindow.IsOpen = true;
 
-    public static void PrintMessage(SeString message, XivChatType type=XivChatType.Echo)
+    public static void PrintMessage(SeString message, XivChatType type = XivChatType.Echo)
     {
         var sb = new SeStringBuilder()
             .AddUiForeground("[兵武塔助手] ", 60)
             .Append(message);
 
-        DalamudApi.ChatGui.Print(new XivChatEntry()
+        Svc.Chat.Print(new()
         {
             Type = type,
             Message = sb.BuiltString
@@ -54,15 +54,9 @@ public unsafe sealed class Plugin : IDalamudPlugin
 
     public void Dispose()
     {
-        DalamudApi.PluginInterface.RemoveChatLinkHandler();
-        DalamudApi.PluginInterface.UiBuilder.Draw -= DrawUI;
-        DalamudApi.PluginInterface.UiBuilder.OpenMainUi -= OpenMainUi;
+        Svc.PluginInterface.UiBuilder.Draw -= DrawUI;
+        Svc.PluginInterface.UiBuilder.OpenMainUi -= OpenMainUi;
         WindowSystem.RemoveAllWindows();
-        TrapperService.Dispose();
-        TrapperTool.Dispose();
-        Common.Dispose();
-        Game.Dispose();
-        DalamudApi.Dispose();
         ECommonsMain.Dispose();
     }
 }
