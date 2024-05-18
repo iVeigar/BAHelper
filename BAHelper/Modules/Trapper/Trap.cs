@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using ECommons;
@@ -26,7 +25,7 @@ public enum ScanResult
     Sense,
     NotSense
 }
-public class Trap : IEquatable<Trap>
+public class Trap
 {
     public TrapType Type { get; init; }
 
@@ -36,27 +35,12 @@ public class Trap : IEquatable<Trap>
 
     public TrapState State { get; set; } = TrapState.NotScanned;
 
-    private int _id = -1;
-
-    public int ID
-    {
-        get
-        {
-            if (_id == -1)
-            {
-                _id = AllTraps.Values.FirstOrDefault(Equals)?._id ?? -2;
-            }
-            return _id;
-        }
-    }
-
-    public bool IsInRecords => ID >= 0;
+    public int Id { get; init; }
 
     public float BlastRadius => Type switch
     {
         TrapType.BigBomb => 7.0f, // verified
         TrapType.SmallBomb => 7.0f, // need verify
-        TrapType.Portal => 1.0f,
         _ => 0.0f
     };
 
@@ -68,38 +52,22 @@ public class Trap : IEquatable<Trap>
         _ => 0.0f
     };
 
-    public Trap()
-    {
-    }
-
     private Trap(int id, TrapType type, Vector3 location, AreaTag areaTag)
     {
-        _id = id;
+        Id = id;
         Type = type;
         Location = location;
         AreaTag = areaTag;
     }
 
-    public bool Equals(Trap other)
-    {
-        return other is not null && Type == other.Type && Location.Distance2D(other.Location) <= 0.01;
-    }
+    public bool LocationEquals(Vector3 loc) => (Location - loc).ToVector2().LengthSquared() < 0.01f;
 
-    public override bool Equals(object obj)
-    {
-        return Equals(obj as Trap);
-    }
+    public IEnumerable<int> GetComplementarySet() => GetComplementarySet([Id]);
 
-    public override int GetHashCode()
+    public static bool TryGetFromLocation(Vector3 loc, out Trap? trap)
     {
-        return Location.ToVector2().GetHashCode();
-    }
-
-
-    public IEnumerable<int> GetComplementarySet()
-    {
-        if (!IsInRecords) return [];
-        return GetComplementarySet([ID]);
+        trap = AllTraps.Values.FirstOrDefault(trap => trap.LocationEquals(loc));
+        return trap != null;
     }
 
     public static IEnumerable<int> GetComplementarySet(IEnumerable<int> source)
@@ -113,57 +81,34 @@ public class Trap : IEquatable<Trap>
         return TrapSets.Skip(1).FirstOrDefault(set => set.IsSupersetOf(source), []).Except(source);
     }
 
-    public static void ResetAll()
-    {
-        foreach (var (_, trap) in AllTraps)
-            trap.State = TrapState.NotScanned;
-    }
+    public static void ResetAll() => AllTraps.Values.Each(trap => trap.State = TrapState.NotScanned);
 
     public static void UpdateByScanResult(Vector3 center, ScanResult lastScanResult)
     {
         if (lastScanResult == ScanResult.None)
             return;
 
-        List<int> trapsIn15y = [];
         List<int> trapsBetween15yAnd36y = [];
         foreach (var trap in AllTraps.Values.Where(t => t.State == TrapState.NotScanned))
         {
             var distance = trap.Location.Distance2D(center);
             if (distance <= 15.0f)
-                trapsIn15y.Add(trap.ID);
+            {
+                // 即使画面上这里是雷, 也设为Disabled, 它的状态由GameObject扫描函数更新为Revealed
+                trap.State = TrapState.Disabled;
+                if (lastScanResult == ScanResult.Sense && trap.Id < 12) // 黑白枪平台后房间里每4颗雷为一组,一并同步更新状态为Disabled
+                    Enumerable.Range(1, 3).Each(i => AllTraps[(trap.Id + i * 3) % 12].State = TrapState.Disabled);
+            }
             else if (distance <= 36.0f)
-                trapsBetween15yAnd36y.Add(trap.ID);
-        }
-
-        // 36y内无陷阱
-        if (lastScanResult == ScanResult.NotSense)
-        {
-            trapsIn15y.Each(t => AllTraps[t].State = TrapState.Disabled);
-            trapsBetween15yAnd36y.Each(t => AllTraps[t].State = TrapState.Disabled);
+            {
+                trapsBetween15yAnd36y.Add(trap.Id);
+                if (lastScanResult == ScanResult.NotSense) // 36y内无陷阱
+                    trap.State = TrapState.Disabled;
+            }
         }
         // 15y内无陷阱; 15y-36y有陷阱
-        else if (lastScanResult == ScanResult.Sense)
-        {
-            if (trapsIn15y.Count > 0)
-            {
-                if (TrapSets[0].IsSupersetOf(trapsIn15y))
-                {
-                    GetComplementarySet(Enumerable.Range(0, 3).Except(trapsIn15y.Select(id => id % 3).ToHashSet())).Each(id => AllTraps[id].State = TrapState.Disabled);
-                }
-                else
-                {
-                    trapsIn15y.Each(id => AllTraps[id].State = TrapState.Disabled);
-                }
-            }
-            if (trapsBetween15yAnd36y.Count > 0)
-            {
-                GetComplementarySet(trapsBetween15yAnd36y).Each(id => AllTraps[id].State = TrapState.Disabled);
-            }
-        }
-        else if (lastScanResult == ScanResult.Discover)
-        {
-            trapsIn15y.Each(id => AllTraps[id].State = TrapState.Disabled);
-        }
+        if (lastScanResult == ScanResult.Sense)
+            GetComplementarySet(trapsBetween15yAnd36y).Each(id => AllTraps[id].State = TrapState.Disabled);
     }
 
     public static Dictionary<int, Trap> AllTraps { get; } = new()

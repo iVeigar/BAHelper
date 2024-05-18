@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Text.RegularExpressions;
 using System.Threading;
 using BAHelper.System;
@@ -21,7 +22,7 @@ public sealed partial class TrapperService : IDisposable
     [GeneratedRegex("^(?<result>.*?)隐藏的陷阱！$")] // 发现了 / 附近感觉到有 / 附近没感觉到
     private static partial Regex MyRegex();
     private static Configuration Config => Plugin.Config;
-    private readonly HashSet<Trap> TrapRevealed = [];
+    private readonly HashSet<Vector3> TrapRevealed = [];
     private readonly List<MobObject> MobObjects = [];
     private long LastEnumeratedAt = Environment.TickCount64;
 
@@ -144,21 +145,17 @@ public sealed partial class TrapperService : IDisposable
 
     private bool CheckChestObject(GameObject obj, AreaTag areaTag)
     {
-        if (ChestFoundAt == AreaTag.None && obj.ObjectKind == ObjectKind.Treasure)
+        if (obj.ObjectKind != ObjectKind.Treasure)
+            return false;
+
+        if (ChestFoundAt == AreaTag.None && 
+            (areaTag == AreaTag.FireRoom1 || areaTag == AreaTag.EarthRoom1 || areaTag == AreaTag.LightningRoom1
+            || areaTag == AreaTag.WindRoom1 || areaTag == AreaTag.IceRoom1 || areaTag == AreaTag.WaterRoom1))
         {
-            if (areaTag == AreaTag.FireRoom1
-                || areaTag == AreaTag.EarthRoom1
-                || areaTag == AreaTag.LightningRoom1
-                || areaTag == AreaTag.WindRoom1
-                || areaTag == AreaTag.IceRoom1
-                || areaTag == AreaTag.WaterRoom1)
-            {
-                ChestFoundAt = areaTag;
-                ShowRoomGroup1Toast(areaTag);
-                return true;
-            }
+            ChestFoundAt = areaTag;
+            ShowRoomGroup1Toast(areaTag);
         }
-        return false;
+        return true;
     }
 
     private static void ShowRoomGroup1Toast(AreaTag areaTag, bool isChest = true)
@@ -175,57 +172,50 @@ public sealed partial class TrapperService : IDisposable
         if (areaTag == AreaTag.None)
             return false;
 
-        var trapType = obj.DataId switch
+        var trapType = obj switch
         {
-            2009728U => TrapType.BigBomb,
-            2009729U => TrapType.Portal,
-            2009730U => TrapType.SmallBomb,
+            { DataId: 2009728U } => TrapType.BigBomb,
+            { DataId: 2009729U } => TrapType.Portal,
+            { DataId: 2009730U } => TrapType.SmallBomb,
+            // todo test this pattern
+            BattleNpc { NameId: 7958U } when (areaTag == AreaTag.CircularPlatform || areaTag == AreaTag.OctagonRoomFromRaiden || areaTag == AreaTag.OctagonRoomToRoomGroup2) => TrapType.SmallBomb,
+            BattleNpc { NameId: 7958U } => TrapType.BigBomb,
             _ => TrapType.None
         };
-        if (trapType == TrapType.None && obj is BattleNpc { BattleNpcKind: BattleNpcSubKind.Enemy, NameId: 7958U })
-        {
-            trapType = (areaTag == AreaTag.CircularPlatform || areaTag == AreaTag.OctagonRoomFromRaiden || areaTag == AreaTag.OctagonRoomToRoomGroup2)
-                ? TrapType.SmallBomb
-                : TrapType.BigBomb;
-        }
+
         if (trapType != TrapType.None)
         {
-            OnTrapRevealed(new()
-            {
-                Type = trapType,
-                Location = obj.Position,
-                State = TrapState.Revealed,
-                AreaTag = areaTag,
-            });
+            OnTrapRevealed(obj.Position, trapType, areaTag);
             return true;
         }
         return false;
     }
 
-    private void OnTrapRevealed(Trap revealedTrap)
+    private void OnTrapRevealed(Vector3 location, TrapType type, AreaTag areaTag)
     {
-        if (!TrapRevealed.Add(revealedTrap))
+        if (!TrapRevealed.Add(location))
             return;
-
-        if (revealedTrap.IsInRecords)
+        var logStr = "";
+        if (Trap.TryGetFromLocation(location, out var trap))
         {
-            Trap.AllTraps[revealedTrap.ID].State = revealedTrap.State;
-            revealedTrap.GetComplementarySet().Each(id => Trap.AllTraps[id].State = TrapState.Disabled);
+            logStr = $"探出陷阱 #{trap.Id} {type} @ {areaTag}";
+            trap.State = TrapState.Revealed;
+            trap.GetComplementarySet().Each(id => Trap.AllTraps[id].State = TrapState.Disabled);
 
-            if (revealedTrap.Type == TrapType.Portal)
-                ShowRoomGroup1Toast(revealedTrap.AreaTag, false);
+            if (trap.Type == TrapType.Portal)
+                ShowRoomGroup1Toast(trap.AreaTag, false);
         }
         else
         {
-            var str = $"探出新的陷阱/门点位! {revealedTrap.Type} @ ({revealedTrap.Location.X}f, {revealedTrap.Location.Y}f, {revealedTrap.Location.Z}f) in {revealedTrap.AreaTag}";
-            Svc.Log.Info(str);
-            Plugin.PrintMessage(str);
+            logStr = $"探出新的陷阱点位! {type} @ ({location.X}f, {location.Y}f, {location.Z}f) @ {areaTag}";
             // 新点位只可能在那两个只有一个易伤雷的房间
-            if (Area.TryGet(revealedTrap.AreaTag, out var area))
+            if (Area.TryGet(areaTag, out var area))
             {
                 area.Traps.Each(trap => trap.State = TrapState.Disabled);
             }
         }
+        Svc.Log.Info(logStr);
+        Plugin.PrintMessage(logStr);
     }
 
     private static bool CheckMobObject(GameObject obj, out MobObject? mobObject)
@@ -250,31 +240,31 @@ public sealed partial class TrapperService : IDisposable
 
     public static void DrawMob(ImDrawListPtr drawList, MobObject mob)
     {
-        if (mob.Position.Distance2D(Common.MeWorldPos) <= 50)
+        if (mob.Position.Distance2D(Common.MeWorldPos) > Config.TrapViewDistance) // todo: change config var name
+            return;
+
+        switch (mob.AggroType)
         {
-            switch (mob.AggroType)
-            {
-                case AggroType.Sight:
-                    drawList.DrawConeFromCenterPoint(mob.Position, mob.Rotation, mob.SightRadian, mob.AggroDistance, Config.NormalAggroColor);
-                    break;
-                case AggroType.Sound:
-                    drawList.DrawRingWorld(mob.Position, mob.AggroDistance, 1f, Config.SoundAggroColor);
-                    drawList.DrawRingWorld(mob.Position, mob.Bnpc.HitboxRadius, 1f, Config.SoundAggroColor.SetAlpha(0.4f), filled: true);
-                    drawList.DrawRingWorld(mob.Position, mob.Bnpc.HitboxRadius, 1f, Config.SoundAggroColor);
-                    break;
-                case AggroType.Proximity:
-                    drawList.DrawRingWorld(mob.Position, mob.AggroDistance, 1f, Config.NormalAggroColor);
-                    drawList.DrawRingWorld(mob.Position, mob.Bnpc.HitboxRadius, 1f, Config.NormalAggroColor.SetAlpha(0.4f), filled: true);
-                    drawList.DrawRingWorld(mob.Position, mob.Bnpc.HitboxRadius, 1f, Config.NormalAggroColor);
-                    break;
-                case AggroType.Magic:
-                case AggroType.Blood:
-                    drawList.DrawRingWorld(mob.Position, mob.Bnpc.HitboxRadius, 1f, Config.SoundAggroColor.SetAlpha(0.4f), filled: true);
-                    drawList.DrawRingWorld(mob.Position, mob.Bnpc.HitboxRadius, 1f, Config.SoundAggroColor);
-                    break;
-                default:
-                    break;
-            }
+            case AggroType.Sight:
+                drawList.DrawConeFromCenterPoint(mob.Position, mob.Rotation, mob.SightRadian, mob.AggroDistance, Config.NormalAggroColor);
+                break;
+            case AggroType.Sound:
+                drawList.DrawRingWorld(mob.Position, mob.AggroDistance, 1f, Config.SoundAggroColor);
+                drawList.DrawRingWorld(mob.Position, mob.Bnpc.HitboxRadius, 1f, Config.SoundAggroColor.SetAlpha(0.4f), filled: true);
+                drawList.DrawRingWorld(mob.Position, mob.Bnpc.HitboxRadius, 1f, Config.SoundAggroColor);
+                break;
+            case AggroType.Proximity:
+                drawList.DrawRingWorld(mob.Position, mob.AggroDistance, 1f, Config.NormalAggroColor);
+                drawList.DrawRingWorld(mob.Position, mob.Bnpc.HitboxRadius, 1f, Config.NormalAggroColor.SetAlpha(0.4f), filled: true);
+                drawList.DrawRingWorld(mob.Position, mob.Bnpc.HitboxRadius, 1f, Config.NormalAggroColor);
+                break;
+            case AggroType.Magic:
+            case AggroType.Blood:
+                drawList.DrawRingWorld(mob.Position, mob.Bnpc.HitboxRadius, 1f, Config.SoundAggroColor.SetAlpha(0.4f), filled: true);
+                drawList.DrawRingWorld(mob.Position, mob.Bnpc.HitboxRadius, 1f, Config.SoundAggroColor);
+                break;
+            default:
+                break;
         }
     }
 
@@ -296,7 +286,7 @@ public sealed partial class TrapperService : IDisposable
             _ => Color.White
         };
 
-        if (Config.DrawTrapBlastCircle
+        if (trap.Type != TrapType.Portal && Config.DrawTrapBlastCircle
             && (!Config.DrawTrapBlastCircleOnlyWhenApproaching || distance < trap.BlastRadius + 4.0f))
             drawList.DrawRingWorld(trap.Location, trap.BlastRadius, 1.3f, color.SetAlpha(0.5f));
 
