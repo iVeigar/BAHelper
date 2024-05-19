@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<Authors>iVeigar</Authors>
-		<Version>1.1.0.0</Version>
+		<Version>1.1.1</Version>
 		<Description>A plugin to enchance your Baldsion Arsenal experience</Description>
 		<PackageProjectUrl>https://github.com/iVeigar</PackageProjectUrl>
 	</PropertyGroup>
