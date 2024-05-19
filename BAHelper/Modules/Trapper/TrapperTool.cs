@@ -71,10 +71,10 @@ public class TrapperTool
         {
             var current = Svc.Targets.Target as PlayerCharacter;
             // 排除当前目标, 允许在给当前目标上盾完毕之前就切换目标
-            var target = Svc.Objects
-                .OfType<PlayerCharacter>()
-                .Where(p => (current is null || p.ObjectId != current.ObjectId) && p.IsTargetable && p.Position.Distance(Common.MeWorldPos) < 25.0f)
-                .FirstOrDefault(check);
+            var target = Svc.Objects.OfType<PlayerCharacter>()
+                .Where(p => (current is null || p.ObjectId != current.ObjectId) && p.IsTargetable && p.Position.Distance(Common.MeWorldPos) < 25.0f && check(p))
+                .OrderBy(p => p.Position.Distance(Common.MeWorldPos))
+                .FirstOrDefault();
             return target;
         }
         return null;

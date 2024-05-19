@@ -37,7 +37,7 @@ public static class Common
 
     public static bool IsInRect(this Vector3 pos, Vector3 origin, Vector3 dims)
     {
-        return pos.X.InRange(origin.X, dims.X) && pos.Z.InRange(origin.Z, dims.Z);
+        return pos.X.InRange(origin.X, origin.X + dims.X) && pos.Z.InRange(origin.Z, origin.Z + dims.Z);
     }
 
     public static (uint, uint) CarriedLogoActions(this BattleChara? player)
