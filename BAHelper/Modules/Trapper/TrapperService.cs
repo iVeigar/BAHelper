@@ -99,7 +99,7 @@ public sealed partial class TrapperService : IDisposable
     private void CheckPortalStatus()
     {
         PossibleAreasOfPortal.Clear();
-        PossibleAreasOfPortal.UnionWith(Trap.AllTraps.Values.Where(t => t.Type == TrapType.Portal && t.State == TrapState.NotScanned).Select(t => t.AreaTag));
+        PossibleAreasOfPortal.UnionWith(Trap.AllTraps.Values.Where(t => t is { Type: TrapType.Portal, State: not TrapState.Disabled }).Select(t => t.AreaTag));
     }
 
     private void OnDraw()
