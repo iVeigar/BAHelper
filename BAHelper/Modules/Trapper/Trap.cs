@@ -39,8 +39,8 @@ public class Trap
 
     public float BlastRadius => Type switch
     {
-        TrapType.BigBomb => 7.0f, // verified
-        TrapType.SmallBomb => 7.0f, // need verify
+        TrapType.BigBomb => 7.0f,
+        TrapType.SmallBomb => 8.0f,
         _ => 0.0f
     };
 

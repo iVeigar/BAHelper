@@ -30,7 +30,7 @@ public class MobInfo
         { 7987, new(){ Id = 7987, AggroType = AggroType.Sight, AggroDistance = 16f }}, // 抄写员
         { 7994, new(){ Id = 7994, AggroType = AggroType.Sight, AggroDistance = 16f }}, // 扇
         { 8002, new(){ Id = 8002, AggroType = AggroType.Sight, AggroDistance = 16f }}, // 眼
-        { 7996, new(){ Id = 7996, AggroType = AggroType.Sound, AggroDistance = 16f }}, // 魔导书 
+        { 7996, new(){ Id = 7996, AggroType = AggroType.Sound, AggroDistance = 14.8f }}, // 魔导书
 
         { 8003, new(){ Id = 8003, AggroType = AggroType.Magic, AggroDistance = 16f }}, // 元精
         { 8004, new(){ Id = 8004, AggroType = AggroType.Blood, AggroDistance = 16f }}, // 死魂
