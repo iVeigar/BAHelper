@@ -8,6 +8,7 @@ using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using ECommons;
 using ECommons.Automation;
+using ECommons.DalamudServices;
 using ImGuiNET;
 
 
@@ -81,14 +82,27 @@ public sealed class MainWindow() : Window("兵武塔助手", ImGuiWindowFlags.Al
         if (save)
             Config.Save();
 
-        for (var i = 1; i < 7; i++)
+        using (ImRaii.Disabled(PartyService.IsBusy))
         {
-            if (ImGui.Button($"{i}队", ImGuiHelpers.ScaledVector2(40f, 40f)))
+            for (var i = 1; i < 7; i++)
             {
-                PartyService.SendPortalsToChat(i);
+                if (ImGui.Button($"{i}队", ImGuiHelpers.ScaledVector2(40f, 40f)))
+                {
+                    PartyService.SendPortalsToChat(i);
+                }
+                if (i < 6) ImGui.SameLine();
             }
-            if (i < 6) ImGui.SameLine();
         }
+        ImGui.Separator();
+        using (ImRaii.Disabled(PartyService.IsBusy || Svc.Party.Length == 0))
+        {
+            if (ImGui.Button("一键检查队员补正数值"))
+            {
+                PartyService.CheckMembersEurekaBonus();
+            }
+        }
+        if (Svc.Party.Length == 0 && ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+            ImGui.SetTooltip("未组成小队");
     }
 
     private void DrawTrapperTab()

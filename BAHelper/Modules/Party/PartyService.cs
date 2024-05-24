@@ -1,12 +1,26 @@
 ﻿using System.Collections.Generic;
+using Dalamud.Game.Text.SeStringHandling.Payloads;
+using Dalamud.Game.Text.SeStringHandling;
 using ECommons.Automation;
 using ECommons.Automation.LegacyTaskManager;
+using ECommons.Throttlers;
+using FFXIVClientStructs.FFXIV.Client.Game;
+using FFXIVClientStructs.FFXIV.Client.UI.Agent;
+using FFXIVClientStructs.FFXIV.Component.GUI;
+using ECommons;
+using ECommons.DalamudServices;
+using Lumina.Excel.GeneratedSheets;
+using System.Linq;
+using FFXIVClientStructs.FFXIV.Client.UI;
 namespace BAHelper.Modules.Party;
 
 public class PartyService
 {
     private static Configuration Config => Plugin.Config;
     private readonly TaskManager TaskManager = new();
+    private static readonly HashSet<uint> HaveOffHandJobCategories = [2, 7, 8, 20];
+    public bool IsBusy => TaskManager.IsBusy;
+
     // note: "Portal" means the unstable / stable portal, not the light-green one in the BA dungeon
     // Global server player
     private static readonly List<List<(float X, float Y)>> PortalsMapGlobal =
@@ -44,6 +58,78 @@ public class PartyService
             TaskManager.Enqueue(() => Utils.SetFlagMarker(827, 515, x, y));
             var portalNumber = i + 1;
             TaskManager.Enqueue(() => MacroManager.Execute($"/{channel} {partyNumber}{portalNumber} - <flag>"));
+        }
+    }
+
+    public unsafe void CheckMembersEurekaBonus()
+    {
+        TaskManager.Enqueue(() =>
+        {
+            if (GenericHelpers.TryGetAddonByName<AtkUnitBase>("CharacterInspect", out var addon) &&
+                GenericHelpers.IsAddonReady(addon) && EzThrottler.Throttle("CheckMembersEurekaBonus"))
+            {
+                AgentInspect.Instance()->AgentInterface.Hide();
+            }
+        });
+        foreach (var member in Svc.Party)
+        {
+            TaskManager.Enqueue(() =>
+            {
+                if (!EzThrottler.Throttle("CheckMembersEurekaBonus")) return false;
+                if (!GenericHelpers.TryGetAddonByName<AtkUnitBase>("CharacterInspect", out var addon) ||
+                    !GenericHelpers.IsAddonReady(addon))
+                {
+                    AgentInspect.Instance()->ExamineCharacter(member.ObjectId);
+                    return false;
+                }
+                var container = InventoryManager.Instance()->GetInventoryContainer(InventoryType.Examine);
+                if (container == null)
+                {
+                    AgentInspect.Instance()->ExamineCharacter(member.ObjectId);
+                    return false;
+                }
+
+                short totalEB = 0;
+                var itemSlotAmount = 11;
+                for (var i = 0; i < 13; i++)
+                {
+                    if (i == 0)
+                    {
+                        var mainHand = Svc.Data.GetExcelSheet<Item>().GetRow(container->GetInventorySlot(i)->ItemID);
+                        var category = mainHand.ClassJobCategory.Row;
+                        if (HaveOffHandJobCategories.Contains(category))
+                            itemSlotAmount++;
+                    }
+
+                    if (i == 1 && itemSlotAmount != 12) continue;
+
+                    // 腰带
+                    if (i == 5) continue;
+
+                    var slot = container->GetInventorySlot(i);
+                    if (slot == null) continue;
+
+                    var itemID = slot->ItemID;
+                    var item = Svc.Data.GetExcelSheet<Item>().GetRow(itemID);
+
+                    if (item.ItemSpecialBonus.Row == 7) // 优雷卡专用效果
+                    {
+                        totalEB += item.UnkData73.FirstOrDefault(b => b.BaseParamSpecial == 36)?.BaseParamValueSpecial ?? 0; // 元素加持
+                    }
+                }
+
+                var ssb = new SeStringBuilder();
+                ssb.AddUiForeground(25);
+                ssb.Add(new PlayerPayload(member.Name.TextValue, member.World.Id));
+                ssb.AddUiForegroundOff();
+                ssb.Append($" ({member.ClassJob.GameData.Name.RawString})");
+                ssb.Append($" 元素加持: ").AddUiForeground(totalEB.ToString(), (ushort)(totalEB > 0 ? 43 : 17));
+
+                Svc.Chat.Print(ssb.Build());
+
+                AgentInspect.Instance()->AgentInterface.Hide();
+                return true;
+            });
         }
     }
 }
