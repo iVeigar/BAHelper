@@ -1,17 +1,16 @@
 ﻿using System.Collections.Generic;
-using Dalamud.Game.Text.SeStringHandling.Payloads;
+using System.Linq;
 using Dalamud.Game.Text.SeStringHandling;
+using Dalamud.Game.Text.SeStringHandling.Payloads;
+using ECommons;
 using ECommons.Automation;
 using ECommons.Automation.LegacyTaskManager;
+using ECommons.DalamudServices;
 using ECommons.Throttlers;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
-using ECommons;
-using ECommons.DalamudServices;
 using Lumina.Excel.GeneratedSheets;
-using System.Linq;
-using FFXIVClientStructs.FFXIV.Client.UI;
 namespace BAHelper.Modules.Party;
 
 public class PartyService

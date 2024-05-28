@@ -7,6 +7,9 @@ public class Configuration : IEzConfig, IPluginConfiguration
 {
     public void Save() => EzConfig.Save();
     public int Version { get; set; } = 0;
+
+    public bool OnlyShowStanceOn = false;
+
     public bool IsCNMoogleDCPlayer = false;
     public bool UsePartyChannel = true;
     public bool CheckStatusProtect = true;

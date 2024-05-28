@@ -1,4 +1,7 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Linq;
+using BAHelper.Modules;
+using BAHelper.Modules.General;
 using BAHelper.Modules.Party;
 using BAHelper.Modules.Trapper;
 using Dalamud.Interface;
@@ -9,6 +12,7 @@ using Dalamud.Interface.Windowing;
 using ECommons;
 using ECommons.Automation;
 using ECommons.DalamudServices;
+using ECommons.ImGuiMethods;
 using ImGuiNET;
 
 
@@ -17,6 +21,7 @@ namespace BAHelper.Windows;
 public sealed class MainWindow() : Window("兵武塔助手", ImGuiWindowFlags.AlwaysAutoResize)
 {
     private static Configuration Config => Plugin.Config;
+    private static DashboardService DashboardService => Singletons.DashboardService;
     private static TrapperService TrapperService => Singletons.TrapperService;
     private static PartyService PartyService => Singletons.PartyService;
 
@@ -24,6 +29,11 @@ public sealed class MainWindow() : Window("兵武塔助手", ImGuiWindowFlags.Al
     {
         if (ImGui.BeginTabBar("BAHelperTabBar"))
         {
+            if (ImGui.BeginTabItem("仪表盘"))
+            {
+                DrawDashboardTab();
+                ImGui.EndTabItem();
+            }
             if (ImGui.BeginTabItem("小队"))
             {
                 DrawPartyTab();
@@ -60,6 +70,38 @@ public sealed class MainWindow() : Window("兵武塔助手", ImGuiWindowFlags.Al
     //    ImGui.Text("InBA: "); ImGui.SameLine(); ImGui.Text(Common.InBA.ToString());
     //    ImGui.Text("Area: "); ImGui.SameLine(); ImGui.Text(Common.MeCurrentArea.ToString());
     //}
+
+    private void DrawDashboardTab()
+    {
+        ImGui.Text("坦克监控");
+        ImGui.SameLine();
+        var save = ImGui.Checkbox("只显示开盾姿的", ref Config.OnlyShowStanceOn);
+        if (save)
+            Config.Save();
+        //if (!Common.InBA)
+        //{
+        //    ImGui.TextColored(Color.Red.ToVector4(), "仅在塔内生效");
+        //    return;
+        //}
+        var entries = DashboardService.Tanks.Where(t => !Config.OnlyShowStanceOn || t.StanceActivated).SelectMany(t =>
+            new List<ImGuiEx.EzTableEntry>(){
+                new("玩家", ImGuiTableColumnFlags.WidthStretch, () => ImGui.Text(t.Name)),
+                new("职业", ImGuiTableColumnFlags.WidthStretch, () => ImGui.Text(t.Job)),
+                new("文理", ImGuiTableColumnFlags.WidthStretch, () => ImGui.Text(t.Logos)),
+                new("盾姿", ImGuiTableColumnFlags.WidthFixed, () => {
+                    ImGui.PushFont(UiBuilder.IconFont);
+                    ImGui.Text((t.StanceActivated ? FontAwesomeIcon.Check : FontAwesomeIcon.Times).ToIconString());
+                    ImGui.PopFont();
+                })
+            }
+        );
+        if (!entries.Any())
+        {
+            ImGui.TextColored(Color.Red.ToVector4(), "附近没有开盾姿的坦克");
+            return;
+        }
+        ImGuiEx.EzTable("盾姿监控", ImGuiTableFlags.Borders, entries, true);
+    }
 
     private void DrawPartyTab()
     {

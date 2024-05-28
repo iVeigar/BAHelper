@@ -18,7 +18,7 @@ public static class Common
     public static bool InBA => InHydatos && MeWorldPos.Y < 200f && MeCurrentArea != AreaTag.Entry;
     public static Vector3 MeWorldPos { get; private set; } = Vector3.Zero;
     public static AreaTag MeCurrentArea { get; private set; } = AreaTag.None;
-    public static List<string> LogoActionNames { get; } = Svc.Data.GetExcelSheet<EurekaMagiaAction>()!.Select(row => row.Action.Value!.Name.ToDalamudString().TextValue.Replace("文理", string.Empty).Replace("的记忆", string.Empty).Replace("的加护", string.Empty)).ToList();
+    public static Dictionary<uint, string> LogoActionNames { get; } = Svc.Data.GetExcelSheet<EurekaMagiaAction>().ToDictionary(row => row.RowId, row => row.Action.Value.Name.ToDalamudString().TextValue.Replace("文理", string.Empty).Replace("的记忆", string.Empty).Replace("的加护", string.Empty));
 
     static Common()
     {
@@ -44,6 +44,12 @@ public static class Common
     {
         uint param = player?.StatusList.FirstOrDefault(status => status.StatusId == 1618, null)?.Param ?? 0;
         return (param >> 8, param & 0xFF);
+    }
+
+    public static string CarriedLogoActionsStr(this BattleChara? player)
+    {
+        var (logo1, logo2) = player.CarriedLogoActions();
+        return $"{LogoActionNames[logo1]} {LogoActionNames[logo2]}".Trim();
     }
 
     public static bool InCombat(this BattleChara chara)
