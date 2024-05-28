@@ -215,6 +215,7 @@ public class Trap
         { 103, new(103, TrapType.SmallBomb, new(117.0615f, 56.0f, 476.7673f), AreaTag.OctagonRoomFromRaiden) },
         { 104, new(104, TrapType.SmallBomb, new(140.7815f, 56.0f, 458.6813f), AreaTag.OctagonRoomFromRaiden) },
         { 105, new(105, TrapType.SmallBomb, new(125.7615f, 56.0f, 477.8533f), AreaTag.OctagonRoomFromRaiden) },
+        { 106, new(106, TrapType.SmallBomb, new(126.099495f, 56.0f, 445.3333f), AreaTag.OctagonRoomFromRaiden) },
         #endregion
 
         #region OctagonRoomToRoomGroup2
@@ -248,7 +249,7 @@ public class Trap
         Enumerable.Range(73, 4).ToHashSet(), // WaterRoom2
         Enumerable.Range(77, 4).ToHashSet(), // WindRoom2
         Enumerable.Range(81, 4).ToHashSet(), // EarthRoom2
-        Enumerable.Range(100, 6).ToHashSet(), // OctagonRoomFromRaiden // todo add more
+        Enumerable.Range(100, 7).ToHashSet(), // OctagonRoomFromRaiden // todo add more
         Enumerable.Range(110, 8).ToHashSet(), // OctagonRoomToRoomGroup2 // todo add more
     ];
 }

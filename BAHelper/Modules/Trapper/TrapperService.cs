@@ -14,6 +14,7 @@ using ECommons;
 using ECommons.DalamudServices;
 using ECommons.EzEventManager;
 using ECommons.GameHelpers;
+using ECommons.Throttlers;
 using ImGuiNET;
 namespace BAHelper.Modules.Trapper;
 
@@ -24,7 +25,6 @@ public sealed partial class TrapperService : IDisposable
     private static Configuration Config => Plugin.Config;
     private readonly HashSet<Vector3> TrapRevealed = [];
     private readonly List<MobObject> MobObjects = [];
-    private long LastEnumeratedAt = Environment.TickCount64;
 
     public AreaTag ChestFoundAt { get; private set; } = AreaTag.None;
     public ScanResult LastScanResult { get; private set; } = ScanResult.None;
@@ -68,12 +68,10 @@ public sealed partial class TrapperService : IDisposable
         if (Svc.Objects == null) return;
         Trap.UpdateByScanResult(Common.MeWorldPos, LastScanResult);
         LastScanResult = ScanResult.None;
-        var now = Environment.TickCount64;
-        if (now - LastEnumeratedAt >= 200)
+        if (EzThrottler.Throttle("TrapperService-Check", 200))
         {
             EnumerateAllObjects();
             CheckPortalStatus();
-            LastEnumeratedAt = now;
         }
     }
 
@@ -177,29 +175,28 @@ public sealed partial class TrapperService : IDisposable
             { DataId: 2009728U } => TrapType.BigBomb,
             { DataId: 2009729U } => TrapType.Portal,
             { DataId: 2009730U } => TrapType.SmallBomb,
-            // todo test this pattern
             BattleNpc { NameId: 7958U } when (areaTag == AreaTag.CircularPlatform || areaTag == AreaTag.OctagonRoomFromRaiden || areaTag == AreaTag.OctagonRoomToRoomGroup2) => TrapType.SmallBomb,
             BattleNpc { NameId: 7958U } => TrapType.BigBomb,
             _ => TrapType.None
         };
-
+        
         if (trapType != TrapType.None)
         {
-            OnTrapRevealed(obj.Position, trapType, areaTag);
+            OnTrapRevealed(obj.Position, trapType, areaTag, obj is BattleNpc { NameId: 7958U });
             return true;
         }
         return false;
     }
 
-    private void OnTrapRevealed(Vector3 location, TrapType type, AreaTag areaTag)
+    private void OnTrapRevealed(Vector3 location, TrapType type, AreaTag areaTag, bool isTriggered)
     {
         if (!TrapRevealed.Add(location))
             return;
         var logStr = "";
         if (Trap.TryGetFromLocation(location, out var trap))
         {
-            logStr = $"探出陷阱 #{trap.Id} {type} @ {areaTag}";
-            trap.State = TrapState.Revealed;
+            logStr = $"{(isTriggered ? "陷阱被踩" : "探出陷阱")} #{trap.Id} {type} @ {areaTag}";
+            trap.State = TrapState.Revealed; // todo: use Triggered
             trap.GetComplementarySet().Each(id => Trap.AllTraps[id].State = TrapState.Disabled);
 
             if (trap.Type == TrapType.Portal)
@@ -207,7 +204,7 @@ public sealed partial class TrapperService : IDisposable
         }
         else
         {
-            logStr = $"探出新的陷阱点位! {type} @ ({location.X}f, {location.Y}f, {location.Z}f) @ {areaTag}";
+            logStr = $"发现新的陷阱点位! {type} @ ({location.X}f, {location.Y}f, {location.Z}f) @ {areaTag}";
             // 新点位只可能在那两个只有一个易伤雷的房间
             if (Area.TryGet(areaTag, out var area))
             {
