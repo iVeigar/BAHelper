@@ -12,7 +12,7 @@ namespace BAHelper.Modules.General;
 
 public sealed class DashboardService
 {
-    public List<(uint ObjectId, string Name, string Job, string Logos, bool StanceActivated)> Tanks { get; } = [];
+    public List<(ulong ObjectId, string Name, string Job, string Logos, bool StanceActivated)> Tanks { get; } = [];
 
     public DashboardService()
     {
@@ -27,7 +27,7 @@ public sealed class DashboardService
                 Tanks.Clear();
             return;
         }
-        if (EzThrottler.Throttle("LeaderService-Check"))
+        if (EzThrottler.Throttle("DashboardService-CheckTank"))
         {
             FindTanks();
         }
@@ -36,13 +36,13 @@ public sealed class DashboardService
     private void FindTanks()
     {
         Tanks.Clear();
-        foreach (var p in Svc.Objects.OfType<PlayerCharacter>())
+        foreach (var p in Svc.Objects.OfType<IPlayerCharacter>())
         {
             //剑术师 斧术师 骑士 战士 暗黑骑士 绝枪战士
             if (!Svc.Data.GetExcelSheet<ClassJobCategory>().GetRow(59)!.IsJobInCategory(p.GetJob()))
                 continue;
             Tanks.Add((
-                p.ObjectId,
+                p.GameObjectId,
                 p.Name.TextValue,
                 p.ClassJob.GameData.Name.RawString,
                 p.CarriedLogoActionsStr(),

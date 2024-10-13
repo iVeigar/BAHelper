@@ -144,7 +144,7 @@ public class Trap
         { 24, new(24, TrapType.Portal, new(-65.09753f, 80.0f, 269.1593f), AreaTag.IceRoom1) },
         { 25, new(25, TrapType.Portal, new(-32.59755f, 80.0f, 265.3596f), AreaTag.LightningRoom1) },
         { 26, new(26, TrapType.Portal, new(-0.6975479f, 80.0f, 265.3596f), AreaTag.LightningRoom1) },
-        { 27, new(27, TrapType.Portal, new(48.00245f, 80.0f, 265.3596f), AreaTag.FireRoom1) }, // 真实y是80.614265f，为了画出来的圈贴着地调整一下
+        { 27, new(27, TrapType.Portal, new(48.00245f, 80.614265f, 265.3596f), AreaTag.FireRoom1) },
         { 28, new(28, TrapType.Portal, new(-94.89746f, 80.1745f, 358.6594f), AreaTag.WaterRoom1) },
         { 29, new(29, TrapType.Portal, new(-84.89747f, 80.1745f, 358.6594f), AreaTag.WaterRoom1) },
         { 30, new(30, TrapType.Portal, new(-74.89747f, 80.1745f, 358.6594f), AreaTag.WaterRoom1) },
@@ -216,6 +216,7 @@ public class Trap
         { 104, new(104, TrapType.SmallBomb, new(140.7815f, 56.0f, 458.6813f), AreaTag.OctagonRoomFromRaiden) },
         { 105, new(105, TrapType.SmallBomb, new(125.7615f, 56.0f, 477.8533f), AreaTag.OctagonRoomFromRaiden) },
         { 106, new(106, TrapType.SmallBomb, new(126.099495f, 56.0f, 445.3333f), AreaTag.OctagonRoomFromRaiden) },
+        { 107, new(107, TrapType.SmallBomb, new(124.3685f, 56.0f, 468.4923f), AreaTag.OctagonRoomFromRaiden) },
         #endregion
 
         #region OctagonRoomToRoomGroup2
@@ -249,7 +250,7 @@ public class Trap
         Enumerable.Range(73, 4).ToHashSet(), // WaterRoom2
         Enumerable.Range(77, 4).ToHashSet(), // WindRoom2
         Enumerable.Range(81, 4).ToHashSet(), // EarthRoom2
-        Enumerable.Range(100, 7).ToHashSet(), // OctagonRoomFromRaiden // todo add more
+        Enumerable.Range(100, 8).ToHashSet(), // OctagonRoomFromRaiden // todo add more
         Enumerable.Range(110, 8).ToHashSet(), // OctagonRoomToRoomGroup2 // todo add more
     ];
 }

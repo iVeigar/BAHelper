@@ -97,7 +97,7 @@ public sealed class MainWindow() : Window("兵武塔助手", ImGuiWindowFlags.Al
         );
         if (!entries.Any())
         {
-            ImGui.TextColored(Color.Red.ToVector4(), "附近没有开盾姿的坦克");
+            ImGui.TextColored(Color.Red.ToVector4(), $"附近没有{(Config.OnlyShowStanceOn ? "开盾姿的" : "")}坦克");
             return;
         }
         ImGuiEx.EzTable("盾姿监控", ImGuiTableFlags.Borders, entries, true);

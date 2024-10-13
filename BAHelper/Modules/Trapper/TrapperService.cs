@@ -45,7 +45,7 @@ public sealed partial class TrapperService : IDisposable
             || Svc.Condition[ConditionFlag.BetweenAreas]
             || Svc.Condition[ConditionFlag.BetweenAreas51]);
 
-    private void OnChatMessage(XivChatType type, uint senderId, ref SeString sender, ref SeString message, ref bool isHandled)
+    private void OnChatMessage(XivChatType type, int timestamp, ref SeString sender, ref SeString message, ref bool isHandled)
     {
         if (!Config.AdvancedModeEnabled || (XivChatType)((int)type & 0x7f) != XivChatType.SystemMessage)
             return;
@@ -141,7 +141,7 @@ public sealed partial class TrapperService : IDisposable
         Monitor.Exit(MobObjects);
     }
 
-    private bool CheckChestObject(GameObject obj, AreaTag areaTag)
+    private bool CheckChestObject(IGameObject obj, AreaTag areaTag)
     {
         if (obj.ObjectKind != ObjectKind.Treasure)
             return false;
@@ -165,7 +165,7 @@ public sealed partial class TrapperService : IDisposable
         Singletons.SoundManager.Play(SoundEffect.SE_1);
     }
 
-    private bool CheckTrapObject(GameObject obj, AreaTag areaTag)
+    private bool CheckTrapObject(IGameObject obj, AreaTag areaTag)
     {
         if (areaTag == AreaTag.None)
             return false;
@@ -175,14 +175,14 @@ public sealed partial class TrapperService : IDisposable
             { DataId: 2009728U } => TrapType.BigBomb,
             { DataId: 2009729U } => TrapType.Portal,
             { DataId: 2009730U } => TrapType.SmallBomb,
-            BattleNpc { NameId: 7958U } when (areaTag == AreaTag.CircularPlatform || areaTag == AreaTag.OctagonRoomFromRaiden || areaTag == AreaTag.OctagonRoomToRoomGroup2) => TrapType.SmallBomb,
-            BattleNpc { NameId: 7958U } => TrapType.BigBomb,
+            IBattleNpc { NameId: 7958U } when (areaTag == AreaTag.CircularPlatform || areaTag == AreaTag.OctagonRoomFromRaiden || areaTag == AreaTag.OctagonRoomToRoomGroup2) => TrapType.SmallBomb,
+            IBattleNpc { NameId: 7958U } => TrapType.BigBomb,
             _ => TrapType.None
         };
         
         if (trapType != TrapType.None)
         {
-            OnTrapRevealed(obj.Position, trapType, areaTag, obj is BattleNpc { NameId: 7958U });
+            OnTrapRevealed(obj.Position, trapType, areaTag, obj is IBattleNpc { NameId: 7958U });
             return true;
         }
         return false;
@@ -215,10 +215,10 @@ public sealed partial class TrapperService : IDisposable
         Plugin.PrintMessage(logStr);
     }
 
-    private static bool CheckMobObject(GameObject obj, out MobObject? mobObject)
+    private static bool CheckMobObject(IGameObject obj, out MobObject? mobObject)
     {
         mobObject = null;
-        if (!obj.IsValid() || obj is not BattleNpc bnpc || !bnpc.BattleNpcKind.Equals(BattleNpcSubKind.Enemy))
+        if (!obj.IsValid() || obj is not IBattleNpc bnpc || !bnpc.BattleNpcKind.Equals(BattleNpcSubKind.Enemy))
             return false;
 
         if (bnpc.IsDead() || bnpc.InCombat())

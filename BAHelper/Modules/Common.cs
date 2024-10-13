@@ -40,24 +40,24 @@ public static class Common
         return pos.X.InRange(origin.X, origin.X + dims.X) && pos.Z.InRange(origin.Z, origin.Z + dims.Z);
     }
 
-    public static (uint, uint) CarriedLogoActions(this BattleChara? player)
+    public static (uint, uint) CarriedLogoActions(this IBattleChara? player)
     {
         uint param = player?.StatusList.FirstOrDefault(status => status.StatusId == 1618, null)?.Param ?? 0;
         return (param >> 8, param & 0xFF);
     }
 
-    public static string CarriedLogoActionsStr(this BattleChara? player)
+    public static string CarriedLogoActionsStr(this IBattleChara? player)
     {
         var (logo1, logo2) = player.CarriedLogoActions();
         return $"{LogoActionNames[logo1]} {LogoActionNames[logo2]}".Trim();
     }
 
-    public static bool InCombat(this BattleChara chara)
+    public static bool InCombat(this IBattleChara chara)
     {
         return (chara.StatusFlags & StatusFlags.InCombat) != 0;
     }
 
-    public static bool IsDead(this BattleChara chara)
+    public static bool IsDead(this IBattleChara chara)
     {
         return chara.IsDead || chara.CurrentHp <= 0;
     }

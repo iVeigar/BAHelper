@@ -19,7 +19,7 @@ public class TrapperTool
     private static bool protectCasted = false;
     private static bool shellCasted = false;
 
-    private static unsafe bool ExecuteActionSafe(ActionType type, uint actionId, ulong targetId = GameObject.InvalidGameObjectId)
+    private static unsafe bool ExecuteActionSafe(ActionType type, uint actionId, ulong targetId = 3758096384uL)
     {
         if (!EzThrottler.Throttle("action", ActionManager.GetAdjustedRecastTime(type, actionId) + 100))
             return false;
@@ -27,18 +27,18 @@ public class TrapperTool
         return true;
     }
 
-    private static bool CastLogoProtect(GameObject? target)
-        => ExecuteActionSafe(ActionType.Action, 12969, target?.ObjectId ?? GameObject.InvalidGameObjectId);
+    private static bool CastLogoProtect(IGameObject? target)
+        => ExecuteActionSafe(ActionType.Action, 12969, target?.GameObjectId ?? 3758096384uL);
 
-    private static bool CastLogoShell(GameObject? target)
-        => ExecuteActionSafe(ActionType.Action, 12970, target?.ObjectId ?? GameObject.InvalidGameObjectId);
+    private static bool CastLogoShell(IGameObject? target)
+        => ExecuteActionSafe(ActionType.Action, 12970, target?.GameObjectId ?? 3758096384uL);
 
-    public static PlayerCharacter? NextShieldTarget()
+    public static IPlayerCharacter? NextShieldTarget()
     {
         var checkStatusProtect = Config.CheckStatusProtect;
         var checkStatusShell = Config.CheckStatusShell;
         var timeThreshold = Config.ShieldRemainingTimeThreshold * 60;
-        bool check(PlayerCharacter player)
+        bool check(IPlayerCharacter player)
         {
             float protectRemainingTime = 0f;
             float shellRemainingTime = 0f;
@@ -69,10 +69,10 @@ public class TrapperTool
         }
         if (checkStatusProtect || checkStatusShell)
         {
-            var current = Svc.Targets.Target as PlayerCharacter;
+            var current = Svc.Targets.Target as IPlayerCharacter;
             // 排除当前目标, 允许在给当前目标上盾完毕之前就切换目标
-            var target = Svc.Objects.OfType<PlayerCharacter>()
-                .Where(p => (current is null || p.ObjectId != current.ObjectId) && p.IsTargetable && p.Position.Distance(Common.MeWorldPos) < 25.0f && check(p))
+            var target = Svc.Objects.OfType<IPlayerCharacter>()
+                .Where(p => (current is null || p.GameObjectId != current.GameObjectId) && p.IsTargetable && p.Position.Distance(Common.MeWorldPos) < 25.0f && check(p))
                 .OrderBy(p => p.Position.Distance(Common.MeWorldPos))
                 .FirstOrDefault();
             return target;

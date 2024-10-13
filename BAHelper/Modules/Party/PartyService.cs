@@ -94,7 +94,7 @@ public class PartyService
                 {
                     if (i == 0)
                     {
-                        var mainHand = Svc.Data.GetExcelSheet<Item>().GetRow(container->GetInventorySlot(i)->ItemID);
+                        var mainHand = Svc.Data.GetExcelSheet<Item>().GetRow(container->GetInventorySlot(i)->ItemId);
                         var category = mainHand.ClassJobCategory.Row;
                         if (HaveOffHandJobCategories.Contains(category))
                             itemSlotAmount++;
@@ -108,7 +108,7 @@ public class PartyService
                     var slot = container->GetInventorySlot(i);
                     if (slot == null) continue;
 
-                    var itemID = slot->ItemID;
+                    var itemID = slot->ItemId;
                     var item = Svc.Data.GetExcelSheet<Item>().GetRow(itemID);
 
                     if (item.ItemSpecialBonus.Row == 7) // 优雷卡专用效果

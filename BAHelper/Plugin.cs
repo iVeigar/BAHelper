@@ -16,7 +16,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly MainWindow MainWindow;
     public static Configuration Config { get; private set; }
 
-    public Plugin(DalamudPluginInterface pluginInterface)
+    public Plugin(IDalamudPluginInterface pluginInterface)
     {
         ECommonsMain.Init(pluginInterface, this);
         EzConfig.Migrate<Configuration>();
