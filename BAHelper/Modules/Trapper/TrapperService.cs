@@ -4,10 +4,10 @@ using System.Linq;
 using System.Numerics;
 using System.Text.RegularExpressions;
 using System.Threading;
-using BAHelper.System;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.Objects.Types;
+using Dalamud.Game.Gui.Toast;
 using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
 using ECommons;
@@ -160,9 +160,8 @@ public sealed partial class TrapperService : IDisposable
     {
         var toast = $"{areaTag.Description()}{(isChest ? "箱" : "门")}！";
         var sb = new SeStringBuilder().AddText(toast);
-        Svc.Toasts.ShowQuest(sb.BuiltString);
+        Svc.Toasts.ShowQuest(sb.BuiltString, new QuestToastOptions() { PlaySound = true, DisplayCheckmark = true });
         Plugin.PrintMessage(sb.BuiltString);
-        Singletons.SoundManager.Play(SoundEffect.SE_1);
     }
 
     private bool CheckTrapObject(IGameObject obj, AreaTag areaTag)
@@ -201,6 +200,8 @@ public sealed partial class TrapperService : IDisposable
 
             if (trap.Type == TrapType.Portal)
                 ShowRoomGroup1Toast(trap.AreaTag, false);
+            // todo add config
+            Plugin.PrintMessage(logStr);
         }
         else
         {
@@ -210,9 +211,10 @@ public sealed partial class TrapperService : IDisposable
             {
                 area.Traps.Each(trap => trap.State = TrapState.Disabled);
             }
+            // todo add config
+            Plugin.PrintMessage(logStr);
         }
-        Svc.Log.Info(logStr);
-        Plugin.PrintMessage(logStr);
+        Svc.Log.Debug(logStr);
     }
 
     private static bool CheckMobObject(IGameObject obj, out MobObject? mobObject)
