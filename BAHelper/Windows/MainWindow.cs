@@ -90,7 +90,7 @@ public sealed class MainWindow() : Window("兵武塔助手", ImGuiWindowFlags.Al
                 new("文理", ImGuiTableColumnFlags.WidthStretch, () => ImGui.Text(t.Logos)),
                 new("盾姿", ImGuiTableColumnFlags.WidthFixed, () => {
                     ImGui.PushFont(UiBuilder.IconFont);
-                    ImGui.Text((t.StanceActivated ? FontAwesomeIcon.Check : FontAwesomeIcon.Times).ToIconString());
+                    ImGui.Text(t.StanceActivated ? FontAwesomeIcon.Check.ToIconString() : "");
                     ImGui.PopFont();
                 })
             }
@@ -234,161 +234,168 @@ public sealed class MainWindow() : Window("兵武塔助手", ImGuiWindowFlags.Al
     private void DrawConfigTab()
     {
         var save = false;
-        save |= ImGui.Checkbox("启用扫描与绘图功能", ref Config.AdvancedModeEnabled);
-        if (Config.AdvancedModeEnabled)
+        if (ImGui.CollapsingHeader("工兵"))
         {
-            ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScaleSafe);
-            save |= ImGui.SliderFloat("绘图范围", ref Config.TrapViewDistance, 15f, 2000f, Config.TrapViewDistance.ToString("##.0m"), ImGuiSliderFlags.Logarithmic);
-
-            save |= ImGui.Checkbox("绘制所有已知的陷阱点位", ref Config.DrawRecordedTraps);
-            if (Config.DrawRecordedTraps)
+            save |= ImGui.Checkbox("启用扫描与绘图功能", ref Config.AdvancedModeEnabled);
+            if (Config.AdvancedModeEnabled)
             {
-                using (ImRaii.PushIndent())
+                ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScaleSafe);
+                save |= ImGui.SliderFloat("绘图范围", ref Config.TrapViewDistance, 15f, 2000f, Config.TrapViewDistance.ToString("##.0m"), ImGuiSliderFlags.Logarithmic);
+
+                save |= ImGui.Checkbox("绘制所有已知的陷阱点位", ref Config.DrawRecordedTraps);
+                if (Config.DrawRecordedTraps)
                 {
-                    var bigBombColorV4 = Config.TrapBigBombColor.ToVector4();
-                    if (ImGuiUtils.ColorPickerWithPalette(1, "", ref bigBombColorV4))
+                    using (ImRaii.PushIndent())
                     {
-                        save = true;
-                        Config.TrapBigBombColor = bigBombColorV4.ToUint();
+                        var bigBombColorV4 = Config.TrapBigBombColor.ToVector4();
+                        if (ImGuiUtils.ColorPickerWithPalette(1, "", ref bigBombColorV4))
+                        {
+                            save = true;
+                            Config.TrapBigBombColor = bigBombColorV4.ToUint();
+                        }
+                        ImGui.SameLine();
+                        ImGui.Text("即死雷");
+
+                        ImGui.SameLine();
+                        ImGui.Spacing();
+                        ImGui.SameLine();
+
+                        var smallBombColorV4 = Config.TrapSmallBombColor.ToVector4();
+                        if (ImGuiUtils.ColorPickerWithPalette(2, "", ref smallBombColorV4))
+                        {
+                            save = true;
+                            Config.TrapSmallBombColor = smallBombColorV4.ToUint();
+                        }
+                        ImGui.SameLine();
+                        ImGui.Text("易伤雷");
+
+                        var portalColorV4 = Config.TrapPortalColor.ToVector4();
+                        if (ImGuiUtils.ColorPickerWithPalette(3, "", ref portalColorV4))
+                        {
+                            save = true;
+                            Config.TrapPortalColor = portalColorV4.ToUint();
+                        }
+                        ImGui.SameLine();
+                        ImGui.Text("传送门");
+
+                        ImGui.SameLine();
+                        ImGui.Spacing();
+                        ImGui.SameLine();
+
+                        var discoveredTrapColorV4 = Config.RevealedTrapColor.ToVector4();
+                        if (ImGuiUtils.ColorPickerWithPalette(4, "", ref discoveredTrapColorV4))
+                        {
+                            save = true;
+                            Config.RevealedTrapColor = discoveredTrapColorV4.ToUint();
+                        }
+                        ImGui.SameLine();
+                        ImGui.Text("已探明/踩到的");
                     }
-                    ImGui.SameLine();
-                    ImGui.Text("即死雷");
+                }
 
-                    ImGui.SameLine();
-                    ImGui.Spacing();
-                    ImGui.SameLine();
-
-                    var smallBombColorV4 = Config.TrapSmallBombColor.ToVector4();
-                    if (ImGuiUtils.ColorPickerWithPalette(2, "", ref smallBombColorV4))
+                save |= ImGui.Checkbox("绘制陷阱爆炸波及范围", ref Config.DrawTrapBlastCircle);
+                if (Config.DrawTrapBlastCircle)
+                {
+                    using (ImRaii.PushIndent())
                     {
-                        save = true;
-                        Config.TrapSmallBombColor = smallBombColorV4.ToUint();
+                        save |= ImGui.Checkbox("仅当接近陷阱时##blast", ref Config.DrawTrapBlastCircleOnlyWhenApproaching);
                     }
-                    ImGui.SameLine();
-                    ImGui.Text("易伤雷");
+                }
 
-                    var portalColorV4 = Config.TrapPortalColor.ToVector4();
-                    if (ImGuiUtils.ColorPickerWithPalette(3, "", ref portalColorV4))
+                save |= ImGui.Checkbox("绘制陷阱15m半径提示圈", ref Config.DrawTrap15m);
+                ImGui.SameLine();
+                var trap15mCircleColorV4 = Config.Trap15mCircleColor.ToVector4();
+                if (ImGuiUtils.ColorPickerWithPalette(5, "", ref trap15mCircleColorV4))
+                {
+                    save = true;
+                    Config.Trap15mCircleColor = trap15mCircleColorV4.ToUint();
+                }
+                if (Config.DrawTrap15m)
+                {
+                    using (ImRaii.PushIndent())
                     {
-                        save = true;
-                        Config.TrapPortalColor = portalColorV4.ToUint();
+                        save |= ImGui.Checkbox("仅当接近陷阱时##15m", ref Config.DrawTrap15mOnlyWhenApproaching);
+                        save |= ImGui.Checkbox("已探出/踩过的陷阱除外##15m", ref Config.DrawTrap15mExceptRevealed);
                     }
-                    ImGui.SameLine();
-                    ImGui.Text("传送门");
+                }
 
-                    ImGui.SameLine();
-                    ImGui.Spacing();
-                    ImGui.SameLine();
-
-                    var discoveredTrapColorV4 = Config.RevealedTrapColor.ToVector4();
-                    if (ImGuiUtils.ColorPickerWithPalette(4, "", ref discoveredTrapColorV4))
+                save |= ImGui.Checkbox("绘制陷阱36m半径提示圈", ref Config.DrawTrap36m);
+                ImGui.SameLine();
+                var trap36mCircleColorV4 = Config.Trap36mCircleColor.ToVector4();
+                if (ImGuiUtils.ColorPickerWithPalette(6, "", ref trap36mCircleColorV4))
+                {
+                    save = true;
+                    Config.Trap36mCircleColor = trap36mCircleColorV4.ToUint();
+                }
+                if (Config.DrawTrap36m)
+                {
+                    using (ImRaii.PushIndent())
                     {
-                        save = true;
-                        Config.RevealedTrapColor = discoveredTrapColorV4.ToUint();
+                        save |= ImGui.Checkbox("仅当接近陷阱时##36m", ref Config.DrawTrap36mOnlyWhenApproaching);
+                        save |= ImGui.Checkbox("已探出/踩过的陷阱除外##36m", ref Config.DrawTrap36mExceptRevealed);
                     }
-                    ImGui.SameLine();
-                    ImGui.Text("已探明/踩到的");
+                }
+
+                save |= ImGui.Checkbox("绘制探景推荐点位", ref Config.DrawRecommendedScanningSpots);
+                ImGui.SameLine();
+                var scanningSpotColorV4 = Config.ScanningSpotColor.ToVector4();
+                if (ImGuiUtils.ColorPickerWithPalette(7, "", ref scanningSpotColorV4))
+                {
+                    save = true;
+                    Config.ScanningSpotColor = scanningSpotColorV4.ToUint();
+                }
+
+                save |= ImGui.Checkbox("绘制探景推荐点位15m半径提示圈", ref Config.DrawScanningSpot15m);
+                ImGui.SameLine();
+                var scanningSpot15mCircleColorV4 = Config.ScanningSpot15mCircleColor.ToVector4();
+                if (ImGuiUtils.ColorPickerWithPalette(8, "", ref scanningSpot15mCircleColorV4))
+                {
+                    save = true;
+                    Config.ScanningSpot15mCircleColor = scanningSpot15mCircleColorV4.ToUint();
+                }
+
+                save |= ImGui.Checkbox("绘制探景推荐点位36m半径提示圈", ref Config.DrawScanningSpot36m);
+                ImGui.SameLine();
+                var scanningSpot36mCircleColorV4 = Config.ScanningSpot36mCircleColor.ToVector4();
+                if (ImGuiUtils.ColorPickerWithPalette(9, "", ref scanningSpot15mCircleColorV4))
+                {
+                    save = true;
+                    Config.ScanningSpot36mCircleColor = scanningSpot36mCircleColorV4.ToUint();
+                }
+
+                save |= ImGui.Checkbox("绘制怪物仇恨范围", ref Config.DrawMobViews);
+                if (Config.DrawMobViews)
+                {
+                    using (ImRaii.PushIndent())
+                    {
+                        var normalColorV4 = Config.NormalAggroColor.ToVector4();
+                        if (ImGuiUtils.ColorPickerWithPalette(10, "", ref normalColorV4))
+                        {
+                            save = true;
+                            Config.NormalAggroColor = normalColorV4.ToUint();
+                        }
+                        ImGui.SameLine();
+                        ImGui.Text("视觉仇恨");
+
+                        ImGui.SameLine();
+                        ImGui.Spacing();
+                        ImGui.SameLine();
+
+                        var soundColorV4 = Config.SoundAggroColor.ToVector4();
+                        if (ImGuiUtils.ColorPickerWithPalette(11, "", ref soundColorV4))
+                        {
+                            save = true;
+                            Config.SoundAggroColor = soundColorV4.ToUint();
+                        }
+                        ImGui.SameLine();
+                        ImGui.Text("听觉/碰撞仇恨");
+                    }
                 }
             }
-
-            save |= ImGui.Checkbox("绘制陷阱爆炸波及范围", ref Config.DrawTrapBlastCircle);
-            if (Config.DrawTrapBlastCircle)
-            {
-                using (ImRaii.PushIndent())
-                {
-                    save |= ImGui.Checkbox("仅当接近陷阱时##blast", ref Config.DrawTrapBlastCircleOnlyWhenApproaching);
-                }
-            }
-
-            save |= ImGui.Checkbox("绘制陷阱15m半径提示圈", ref Config.DrawTrap15m);
-            ImGui.SameLine();
-            var trap15mCircleColorV4 = Config.Trap15mCircleColor.ToVector4();
-            if (ImGuiUtils.ColorPickerWithPalette(5, "", ref trap15mCircleColorV4))
-            {
-                save = true;
-                Config.Trap15mCircleColor = trap15mCircleColorV4.ToUint();
-            }
-            if (Config.DrawTrap15m)
-            {
-                using (ImRaii.PushIndent())
-                {
-                    save |= ImGui.Checkbox("仅当接近陷阱时##15m", ref Config.DrawTrap15mOnlyWhenApproaching);
-                    save |= ImGui.Checkbox("已探出/踩过的陷阱除外##15m", ref Config.DrawTrap15mExceptRevealed);
-                }
-            }
-
-            save |= ImGui.Checkbox("绘制陷阱36m半径提示圈", ref Config.DrawTrap36m);
-            ImGui.SameLine();
-            var trap36mCircleColorV4 = Config.Trap36mCircleColor.ToVector4();
-            if (ImGuiUtils.ColorPickerWithPalette(6, "", ref trap36mCircleColorV4))
-            {
-                save = true;
-                Config.Trap36mCircleColor = trap36mCircleColorV4.ToUint();
-            }
-            if (Config.DrawTrap36m)
-            {
-                using (ImRaii.PushIndent())
-                {
-                    save |= ImGui.Checkbox("仅当接近陷阱时##36m", ref Config.DrawTrap36mOnlyWhenApproaching);
-                    save |= ImGui.Checkbox("已探出/踩过的陷阱除外##36m", ref Config.DrawTrap36mExceptRevealed);
-                }
-            }
-
-            save |= ImGui.Checkbox("绘制探景推荐点位", ref Config.DrawRecommendedScanningSpots);
-            ImGui.SameLine();
-            var scanningSpotColorV4 = Config.ScanningSpotColor.ToVector4();
-            if (ImGuiUtils.ColorPickerWithPalette(7, "", ref scanningSpotColorV4))
-            {
-                save = true;
-                Config.ScanningSpotColor = scanningSpotColorV4.ToUint();
-            }
-
-            save |= ImGui.Checkbox("绘制探景推荐点位15m半径提示圈", ref Config.DrawScanningSpot15m);
-            ImGui.SameLine();
-            var scanningSpot15mCircleColorV4 = Config.ScanningSpot15mCircleColor.ToVector4();
-            if (ImGuiUtils.ColorPickerWithPalette(8, "", ref scanningSpot15mCircleColorV4))
-            {
-                save = true;
-                Config.ScanningSpot15mCircleColor = scanningSpot15mCircleColorV4.ToUint();
-            }
-
-            save |= ImGui.Checkbox("绘制探景推荐点位36m半径提示圈", ref Config.DrawScanningSpot36m);
-            ImGui.SameLine();
-            var scanningSpot36mCircleColorV4 = Config.ScanningSpot36mCircleColor.ToVector4();
-            if (ImGuiUtils.ColorPickerWithPalette(9, "", ref scanningSpot15mCircleColorV4))
-            {
-                save = true;
-                Config.ScanningSpot36mCircleColor = scanningSpot36mCircleColorV4.ToUint();
-            }
-
-            save |= ImGui.Checkbox("绘制怪物仇恨范围", ref Config.DrawMobViews);
-            if (Config.DrawMobViews)
-            {
-                using (ImRaii.PushIndent())
-                {
-                    var normalColorV4 = Config.NormalAggroColor.ToVector4();
-                    if (ImGuiUtils.ColorPickerWithPalette(10, "", ref normalColorV4))
-                    {
-                        save = true;
-                        Config.NormalAggroColor = normalColorV4.ToUint();
-                    }
-                    ImGui.SameLine();
-                    ImGui.Text("视觉仇恨");
-
-                    ImGui.SameLine();
-                    ImGui.Spacing();
-                    ImGui.SameLine();
-
-                    var soundColorV4 = Config.SoundAggroColor.ToVector4();
-                    if (ImGuiUtils.ColorPickerWithPalette(11, "", ref soundColorV4))
-                    {
-                        save = true;
-                        Config.SoundAggroColor = soundColorV4.ToUint();
-                    }
-                    ImGui.SameLine();
-                    ImGui.Text("听觉/碰撞仇恨");
-                }
-            }
+        }
+        if (ImGui.CollapsingHeader("杂项"))
+        {
+            save |= ImGui.Checkbox("进入水岛时提示当前等级", ref Config.ElementLevelReminderEnabled);
         }
         if (save)
             Config.Save();

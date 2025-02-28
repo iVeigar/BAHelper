@@ -7,7 +7,7 @@ using ECommons.ExcelServices;
 using ECommons.EzEventManager;
 using ECommons.GameHelpers;
 using ECommons.Throttlers;
-using Lumina.Excel.GeneratedSheets;
+using Lumina.Excel.Sheets;
 namespace BAHelper.Modules.General;
 
 public sealed class DashboardService
@@ -44,7 +44,7 @@ public sealed class DashboardService
             Tanks.Add((
                 p.GameObjectId,
                 p.Name.TextValue,
-                p.ClassJob.GameData.Name.RawString,
+                p.ClassJob.Value.Name.ToString(),
                 p.CarriedLogoActionsStr(),
                 p.StatusList.Any(status => status.StatusId.EqualsAny(79u, 91u, 743u, 1833u))
             ));

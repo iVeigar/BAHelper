@@ -5,7 +5,7 @@ VisualStudioVersion = 17.3.32929.385
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BAHelper", "BAHelper\BAHelper.csproj", "{A9E60489-020E-46CF-9447-17EFCF512D22}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ECommons", "ECommons\ECommons\ECommons.csproj", "{812CDAE5-7426-4705-9889-FF0691511D7C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ECommons", "ECommons\ECommons\ECommons.csproj", "{698095D2-77DA-4F3F-9F47-7BAC399E44B6}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -35,22 +35,22 @@ Global
 		{A9E60489-020E-46CF-9447-17EFCF512D22}.ReleaseForms|Any CPU.Build.0 = Release|Any CPU
 		{A9E60489-020E-46CF-9447-17EFCF512D22}.ReleaseForms|x64.ActiveCfg = Release|x64
 		{A9E60489-020E-46CF-9447-17EFCF512D22}.ReleaseForms|x64.Build.0 = Release|x64
-		{812CDAE5-7426-4705-9889-FF0691511D7C}.Debug|Any CPU.ActiveCfg = Debug|x64
-		{812CDAE5-7426-4705-9889-FF0691511D7C}.Debug|Any CPU.Build.0 = Debug|x64
-		{812CDAE5-7426-4705-9889-FF0691511D7C}.Debug|x64.ActiveCfg = Debug|x64
-		{812CDAE5-7426-4705-9889-FF0691511D7C}.Debug|x64.Build.0 = Debug|x64
-		{812CDAE5-7426-4705-9889-FF0691511D7C}.DebugForms|Any CPU.ActiveCfg = DebugForms|x64
-		{812CDAE5-7426-4705-9889-FF0691511D7C}.DebugForms|Any CPU.Build.0 = DebugForms|x64
-		{812CDAE5-7426-4705-9889-FF0691511D7C}.DebugForms|x64.ActiveCfg = DebugForms|x64
-		{812CDAE5-7426-4705-9889-FF0691511D7C}.DebugForms|x64.Build.0 = DebugForms|x64
-		{812CDAE5-7426-4705-9889-FF0691511D7C}.Release|Any CPU.ActiveCfg = Release|x64
-		{812CDAE5-7426-4705-9889-FF0691511D7C}.Release|Any CPU.Build.0 = Release|x64
-		{812CDAE5-7426-4705-9889-FF0691511D7C}.Release|x64.ActiveCfg = Release|x64
-		{812CDAE5-7426-4705-9889-FF0691511D7C}.Release|x64.Build.0 = Release|x64
-		{812CDAE5-7426-4705-9889-FF0691511D7C}.ReleaseForms|Any CPU.ActiveCfg = ReleaseForms|x64
-		{812CDAE5-7426-4705-9889-FF0691511D7C}.ReleaseForms|Any CPU.Build.0 = ReleaseForms|x64
-		{812CDAE5-7426-4705-9889-FF0691511D7C}.ReleaseForms|x64.ActiveCfg = ReleaseForms|x64
-		{812CDAE5-7426-4705-9889-FF0691511D7C}.ReleaseForms|x64.Build.0 = ReleaseForms|x64
+		{698095D2-77DA-4F3F-9F47-7BAC399E44B6}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{698095D2-77DA-4F3F-9F47-7BAC399E44B6}.Debug|Any CPU.Build.0 = Debug|x64
+		{698095D2-77DA-4F3F-9F47-7BAC399E44B6}.Debug|x64.ActiveCfg = Debug|x64
+		{698095D2-77DA-4F3F-9F47-7BAC399E44B6}.Debug|x64.Build.0 = Debug|x64
+		{698095D2-77DA-4F3F-9F47-7BAC399E44B6}.DebugForms|Any CPU.ActiveCfg = DebugForms|x64
+		{698095D2-77DA-4F3F-9F47-7BAC399E44B6}.DebugForms|Any CPU.Build.0 = DebugForms|x64
+		{698095D2-77DA-4F3F-9F47-7BAC399E44B6}.DebugForms|x64.ActiveCfg = DebugForms|x64
+		{698095D2-77DA-4F3F-9F47-7BAC399E44B6}.DebugForms|x64.Build.0 = DebugForms|x64
+		{698095D2-77DA-4F3F-9F47-7BAC399E44B6}.Release|Any CPU.ActiveCfg = Release|x64
+		{698095D2-77DA-4F3F-9F47-7BAC399E44B6}.Release|Any CPU.Build.0 = Release|x64
+		{698095D2-77DA-4F3F-9F47-7BAC399E44B6}.Release|x64.ActiveCfg = Release|x64
+		{698095D2-77DA-4F3F-9F47-7BAC399E44B6}.Release|x64.Build.0 = Release|x64
+		{698095D2-77DA-4F3F-9F47-7BAC399E44B6}.ReleaseForms|Any CPU.ActiveCfg = ReleaseForms|x64
+		{698095D2-77DA-4F3F-9F47-7BAC399E44B6}.ReleaseForms|Any CPU.Build.0 = ReleaseForms|x64
+		{698095D2-77DA-4F3F-9F47-7BAC399E44B6}.ReleaseForms|x64.ActiveCfg = ReleaseForms|x64
+		{698095D2-77DA-4F3F-9F47-7BAC399E44B6}.ReleaseForms|x64.Build.0 = ReleaseForms|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

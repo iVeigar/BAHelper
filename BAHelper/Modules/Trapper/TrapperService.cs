@@ -10,6 +10,7 @@ using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Game.Gui.Toast;
 using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
+using Dalamud.Utility;
 using ECommons;
 using ECommons.DalamudServices;
 using ECommons.EzEventManager;
@@ -25,7 +26,7 @@ public sealed partial class TrapperService : IDisposable
     private static Configuration Config => Plugin.Config;
     private readonly HashSet<Vector3> TrapRevealed = [];
     private readonly List<MobObject> MobObjects = [];
-
+    private bool prevInBA = false;
     public AreaTag ChestFoundAt { get; private set; } = AreaTag.None;
     public ScanResult LastScanResult { get; private set; } = ScanResult.None;
     public HashSet<AreaTag> PossibleAreasOfPortal { get; } = [];
@@ -33,7 +34,7 @@ public sealed partial class TrapperService : IDisposable
     public TrapperService()
     {
         Svc.PluginInterface.UiBuilder.Draw += OnDraw;
-        Svc.Chat.ChatMessage += OnChatMessage;
+        Svc.Chat.CheckMessageHandled += OnChatMessage;
         _ = new EzFrameworkUpdate(OnFrameworkUpdate);
         _ = new EzTerritoryChanged(OnTerritoryChanged);
     }
@@ -50,7 +51,7 @@ public sealed partial class TrapperService : IDisposable
         if (!Config.AdvancedModeEnabled || (XivChatType)((int)type & 0x7f) != XivChatType.SystemMessage)
             return;
 
-        if (MyRegex().Match(message.ExtractText()) is var match && match.Success)
+        if (MyRegex().Match(message.GetText()) is var match && match.Success)
         {
             var result = match.Groups["result"].Value;
             if (result.Contains("发现"))
@@ -66,6 +67,9 @@ public sealed partial class TrapperService : IDisposable
     {
         if (!Common.InHydatos) return;
         if (Svc.Objects == null) return;
+        if (!Common.InBA && prevInBA)
+            Reset();
+        prevInBA = Common.InBA;
         Trap.UpdateByScanResult(Common.MeWorldPos, LastScanResult);
         LastScanResult = ScanResult.None;
         if (EzThrottler.Throttle("TrapperService-Check", 200))
@@ -151,12 +155,12 @@ public sealed partial class TrapperService : IDisposable
             || areaTag == AreaTag.WindRoom1 || areaTag == AreaTag.IceRoom1 || areaTag == AreaTag.WaterRoom1))
         {
             ChestFoundAt = areaTag;
-            ShowRoomGroup1Toast(areaTag);
+            ShowChestAndPortalRevealed(areaTag);
         }
         return true;
     }
 
-    private static void ShowRoomGroup1Toast(AreaTag areaTag, bool isChest = true)
+    private static void ShowChestAndPortalRevealed(AreaTag areaTag, bool isChest = true)
     {
         var toast = $"{areaTag.Description()}{(isChest ? "箱" : "门")}！";
         var sb = new SeStringBuilder().AddText(toast);
@@ -192,23 +196,32 @@ public sealed partial class TrapperService : IDisposable
         if (!TrapRevealed.Add(location))
             return;
         var logStr = "";
+        var typeStr = type switch
+        {
+            TrapType.BigBomb => "即死雷",
+            TrapType.SmallBomb => "易伤雷",
+            TrapType.Portal => "传送门",
+            _ => ""
+        };
+
         if (Trap.TryGetFromLocation(location, out var trap))
         {
-            logStr = $"{(isTriggered ? "陷阱被踩" : "探出陷阱")} #{trap.Id} {type} @ {areaTag}";
-            trap.State = TrapState.Revealed; // todo: use Triggered
+            logStr = $"{(isTriggered ? "陷阱被踩" : "探出陷阱")}：{trap.Info}";
+            trap.State = TrapState.Revealed;
             trap.GetComplementarySet().Each(id => Trap.AllTraps[id].State = TrapState.Disabled);
 
             if (trap.Type == TrapType.Portal)
-                ShowRoomGroup1Toast(trap.AreaTag, false);
+                ShowChestAndPortalRevealed(trap.AreaTag, false);
             // todo add config
             Plugin.PrintMessage(logStr);
         }
         else
         {
-            logStr = $"发现新的陷阱点位! {type} @ ({location.X}f, {location.Y}f, {location.Z}f) @ {areaTag}";
-            // 新点位只可能在那两个只有一个易伤雷的房间
+            logStr = $"发现新的陷阱点位! {typeStr} @ ({location.X}f, {location.Y}f, {location.Z}f) @ {areaTag}";
+            
             if (Area.TryGet(areaTag, out var area))
             {
+                // 新点位只可能在那两个只有一个易伤雷的房间，只有一个雷所以其他点位disabled
                 area.Traps.Each(trap => trap.State = TrapState.Disabled);
             }
             // todo add config

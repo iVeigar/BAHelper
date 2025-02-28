@@ -4,12 +4,14 @@ using System.Numerics;
 using BAHelper.Modules.Trapper;
 using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.Objects.Types;
+using Dalamud.Game.Gui.Toast;
 using Dalamud.Utility;
+using ECommons;
 using ECommons.DalamudServices;
 using ECommons.EzEventManager;
 using ECommons.GameHelpers;
 using ECommons.MathHelpers;
-using Lumina.Excel.GeneratedSheets;
+using Lumina.Excel.Sheets;
 namespace BAHelper.Modules;
 
 public static class Common
@@ -19,18 +21,30 @@ public static class Common
     public static Vector3 MeWorldPos { get; private set; } = Vector3.Zero;
     public static AreaTag MeCurrentArea { get; private set; } = AreaTag.None;
     public static Dictionary<uint, string> LogoActionNames { get; } = Svc.Data.GetExcelSheet<EurekaMagiaAction>().ToDictionary(row => row.RowId, row => row.Action.Value.Name.ToDalamudString().TextValue.Replace("文理", string.Empty).Replace("的记忆", string.Empty).Replace("的加护", string.Empty));
-
+    private static bool reminded = false;
     static Common()
     {
         _ = new EzFrameworkUpdate(OnFrameworkUpdate);
     }
 
-    private static void OnFrameworkUpdate()
+    private static unsafe void OnFrameworkUpdate()
     {
-        if (!InHydatos) return;
+        if (!InHydatos)
+        {
+            if (reminded) reminded = false;
+            return;
+        }
+        
         if (!Player.Available) return;
         MeWorldPos = Player.Object.Position;
         MeCurrentArea = Area.Locate(MeWorldPos)?.Tag ?? AreaTag.None;
+        if (Plugin.Config.ElementLevelReminderEnabled && !reminded && !GenericHelpers.IsOccupied())
+        {
+            var note = $"当前等级：\xE03A \xE06A.{Player.BattleChara->ForayInfo.Level}";
+            Svc.Toasts.ShowQuest($"BA助手提示您{note}", new QuestToastOptions { IconId = 65060, PlaySound = true });
+            Plugin.PrintMessage(note);
+            reminded = true;
+        }
     }
 
     public static bool IsInArea(this Vector3 pos, Area area) => pos.IsInRect(area.Origin, area.Dims);

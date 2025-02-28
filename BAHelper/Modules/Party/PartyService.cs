@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
@@ -10,7 +11,7 @@ using ECommons.Throttlers;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
-using Lumina.Excel.GeneratedSheets;
+using Lumina.Excel.Sheets;
 namespace BAHelper.Modules.Party;
 
 public class PartyService
@@ -95,7 +96,7 @@ public class PartyService
                     if (i == 0)
                     {
                         var mainHand = Svc.Data.GetExcelSheet<Item>().GetRow(container->GetInventorySlot(i)->ItemId);
-                        var category = mainHand.ClassJobCategory.Row;
+                        var category = mainHand.ClassJobCategory.RowId;
                         if (HaveOffHandJobCategories.Contains(category))
                             itemSlotAmount++;
                     }
@@ -111,17 +112,24 @@ public class PartyService
                     var itemID = slot->ItemId;
                     var item = Svc.Data.GetExcelSheet<Item>().GetRow(itemID);
 
-                    if (item.ItemSpecialBonus.Row == 7) // 优雷卡专用效果
+                    if (item.ItemSpecialBonus.RowId == 7) // 优雷卡专用效果
                     {
-                        totalEB += item.UnkData73.FirstOrDefault(b => b.BaseParamSpecial == 36)?.BaseParamValueSpecial ?? 0; // 元素加持
+                        for (var j = 0; j < 6; j++)
+                        {
+                            if (item.BaseParamSpecial[j].RowId == 36) // 元素加持
+                            {
+                                totalEB += item.BaseParamValueSpecial[j];
+                                break;
+                            }
+                        }
                     }
                 }
 
                 var ssb = new SeStringBuilder();
                 ssb.AddUiForeground(25);
-                ssb.Add(new PlayerPayload(member.Name.TextValue, member.World.Id));
+                ssb.Add(new PlayerPayload(member.Name.TextValue, member.World.RowId));
                 ssb.AddUiForegroundOff();
-                ssb.Append($" ({member.ClassJob.GameData.Name.RawString})");
+                ssb.Append($" ({member.ClassJob.Value.Name})");
                 ssb.Append($" 元素加持: ").AddUiForeground(totalEB.ToString(), (ushort)(totalEB > 0 ? 43 : 17));
 
                 Svc.Chat.Print(ssb.Build());

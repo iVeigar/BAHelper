@@ -36,7 +36,7 @@ public static class Utils
         AgentMap.Instance()->SetFlagMapMarker(territoryId, mapId, mapLinkPayload.RawX / 1000f, mapLinkPayload.RawY / 1000f);
     }
 
-    public static T? GetSheetRow<T>(uint row) where T : ExcelRow
+    public static T GetSheetRow<T>(uint row) where T : struct, IExcelRow<T>
     {
         return Svc.Data.GetExcelSheet<T>()!.GetRow(row);
     }
