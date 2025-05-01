@@ -12,7 +12,9 @@ using Dalamud.Interface.Windowing;
 using ECommons;
 using ECommons.Automation;
 using ECommons.DalamudServices;
+using ECommons.GameHelpers;
 using ECommons.ImGuiMethods;
+using FFXIVClientStructs.FFXIV.Client.Game;
 using ImGuiNET;
 
 
@@ -73,34 +75,41 @@ public sealed class MainWindow() : Window("兵武塔助手", ImGuiWindowFlags.Al
 
     private void DrawDashboardTab()
     {
-        ImGui.Text("坦克监控");
+        ImGui.Text("玩家监控");
         ImGui.SameLine();
-        var save = ImGui.Checkbox("只显示开盾姿的", ref Config.OnlyShowStanceOn);
-        if (save)
-            Config.Save();
-        //if (!Common.InBA)
-        //{
-        //    ImGui.TextColored(Color.Red.ToVector4(), "仅在塔内生效");
-        //    return;
-        //}
-        var entries = DashboardService.Tanks.Where(t => !Config.OnlyShowStanceOn || t.StanceActivated).SelectMany(t =>
+        ImGuiComponents.HelpMarker("检查附近玩家的职业、文理、英杰、记忆、盾姿、易伤\n只列出特殊情况\n点击玩家名字会尝试在游戏内选中玩家");
+        if (!Common.InBA)
+        {
+            ImGui.TextColored(Color.Red.ToVector4(), "仅在塔内生效");
+            return;
+        }
+        var entries = DashboardService.Players.SelectMany(player =>
             new List<ImGuiEx.EzTableEntry>(){
-                new("玩家", ImGuiTableColumnFlags.WidthStretch, () => ImGui.Text(t.Name)),
-                new("职业", ImGuiTableColumnFlags.WidthStretch, () => ImGui.Text(t.Job)),
-                new("文理", ImGuiTableColumnFlags.WidthStretch, () => ImGui.Text(t.Logos)),
-                new("盾姿", ImGuiTableColumnFlags.WidthFixed, () => {
-                    ImGui.PushFont(UiBuilder.IconFont);
-                    ImGui.Text(t.StanceActivated ? FontAwesomeIcon.Check.ToIconString() : "");
-                    ImGui.PopFont();
-                })
+                new("玩家", ImGuiTableColumnFlags.WidthStretch, () => {
+                    ImGui.Text(player.Name);
+                    if (ImGui.IsItemHovered())
+                    {
+                        ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
+                    }
+                    if (ImGui.IsItemClicked())
+                    {
+                        var obj = Svc.Objects.SearchById(player.ObjectId);
+                        if (obj != null) {
+                            Svc.Targets.Target = obj;
+                        }
+                    }
+                }),
+                new("职业", ImGuiTableColumnFlags.WidthFixed, () => ImGui.Text(player.Job)),
+                new("文理", ImGuiTableColumnFlags.WidthStretch, () => ImGui.Text(player.Logos)),
+                new("状态", ImGuiTableColumnFlags.WidthStretch, () => ImGui.Text(player.Description))
             }
         );
         if (!entries.Any())
         {
-            ImGui.TextColored(Color.Red.ToVector4(), $"附近没有{(Config.OnlyShowStanceOn ? "开盾姿的" : "")}坦克");
+            ImGui.TextColored(Color.Red.ToVector4(), $"附近没有其他玩家");
             return;
         }
-        ImGuiEx.EzTable("盾姿监控", ImGuiTableFlags.Borders, entries, true);
+        ImGuiEx.EzTable("玩家监控", ImGuiTableFlags.Borders, entries, true);
     }
 
     private void DrawPartyTab()
@@ -147,18 +156,15 @@ public sealed class MainWindow() : Window("兵武塔助手", ImGuiWindowFlags.Al
             ImGui.SetTooltip("未组成小队");
     }
 
-    private void DrawTrapperTab()
+    private unsafe void DrawTrapperTab()
     {
         var save = false;
         ImGui.Text("自动上盾功能");
+        ImGui.SameLine();
         if (ImGuiUtils.IconButton(TrapperTool.IsRunning ? FontAwesomeIcon.Stop : FontAwesomeIcon.Play, "##autoshield"))
         {
             TrapperTool.Toggle();
         }
-        ImGui.SameLine();
-        save |= ImGui.Checkbox("上护盾", ref Config.CheckStatusProtect);
-        ImGui.SameLine();
-        save |= ImGui.Checkbox("上魔盾", ref Config.CheckStatusShell);
 
         ImGui.Text("盾剩余时间阈值（分钟）");
 

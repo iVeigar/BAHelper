@@ -13,8 +13,6 @@ public class Configuration : IEzConfig, IPluginConfiguration
     public bool IsCNMoogleDCPlayer = false;
     public bool UsePartyChannel = true;
 
-    public bool CheckStatusProtect = true;
-    public bool CheckStatusShell = true;
     public int ShieldRemainingTimeThreshold = 15; // minutes
 
     public bool ElementLevelReminderEnabled = true;

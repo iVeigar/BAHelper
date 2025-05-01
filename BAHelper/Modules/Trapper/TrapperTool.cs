@@ -1,42 +1,54 @@
 ﻿using System.Linq;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
+using ECommons.Automation.LegacyTaskManager;
 using ECommons.DalamudServices;
-using ECommons.EzEventManager;
 using ECommons.GameHelpers;
-using ECommons.Throttlers;
 using FFXIVClientStructs.FFXIV.Client.Game;
 
 namespace BAHelper.Modules.Trapper;
 
-public class TrapperTool
+public class TrapperTool()
 {
-    public static bool IsRunning { get; private set; } = false;
-    private static Configuration Config => Plugin.Config;
-    private static bool protectMinded = false;
-    private static bool shellMinded = false;
-    private static bool canChangeTarget = true;
-    private static bool protectCasted = false;
-    private static bool shellCasted = false;
+    public static bool IsRunning => TaskManager.IsBusy;
 
-    private static unsafe bool ExecuteActionSafe(ActionType type, uint actionId, ulong targetId = 3758096384uL)
+    private static readonly TaskManager TaskManager = new() { ShowDebug = true};
+
+    private static Configuration Config => Plugin.Config;
+
+    public static void Toggle()
     {
-        if (!EzThrottler.Throttle("action", ActionManager.GetAdjustedRecastTime(type, actionId) + 100))
+        if (IsRunning) Stop();
+        else Start();
+    }
+
+    public static void Start()
+    {
+        if (IsRunning) return;
+        TaskManager.Enqueue(DoNextCast, "DoNextCast");
+    }
+
+    public static void Stop() => TaskManager.Abort();
+
+    private static unsafe bool ExecuteActionSafe(ActionType type, uint actionId, ulong targetId = 0xE0000000)
+    {
+        var total = ActionManager.GetAdjustedRecastTime(type, actionId);
+        var elapsed = (int)(ActionManager.Instance()->GetRecastTimeElapsed(type, actionId) * 1000);
+        if (elapsed == 0 && ActionManager.Instance()->GetActionStatus(type, actionId) == 0) 
+        {
+            ActionManager.Instance()->UseAction(type, actionId, targetId);
+        }
+        else if (total - elapsed < 500 && !ActionManager.Instance()->ActionQueued)
+        {
+            ActionManager.Instance()->UseAction(type, actionId, targetId, mode: ActionManager.UseActionMode.Queue);
+        }
+        else 
             return false;
-        ActionManager.Instance()->UseAction(type, actionId, targetId);
         return true;
     }
 
-    private static bool CastLogoProtect(IGameObject? target)
-        => ExecuteActionSafe(ActionType.Action, 12969, target?.GameObjectId ?? 3758096384uL);
-
-    private static bool CastLogoShell(IGameObject? target)
-        => ExecuteActionSafe(ActionType.Action, 12970, target?.GameObjectId ?? 3758096384uL);
-
-    public static IPlayerCharacter? NextShieldTarget()
+    private static IGameObject? NextShieldTarget(bool protect, bool shell)
     {
-        var checkStatusProtect = Config.CheckStatusProtect;
-        var checkStatusShell = Config.CheckStatusShell;
         var timeThreshold = Config.ShieldRemainingTimeThreshold * 60;
         bool check(IPlayerCharacter player)
         {
@@ -46,7 +58,7 @@ public class TrapperTool
             bool shellFound = false;
             foreach (var status in player.StatusList)
             {
-                if (checkStatusProtect && !protectFound || checkStatusShell && !shellFound)
+                if (protect && !protectFound || shell && !shellFound)
                 {
                     switch (status.StatusId)
                     {
@@ -64,10 +76,10 @@ public class TrapperTool
                 }
                 else break;
             }
-            return checkStatusProtect && protectRemainingTime <= timeThreshold
-                || checkStatusShell && shellRemainingTime <= timeThreshold;
+            return protect && protectRemainingTime <= timeThreshold
+                || shell && shellRemainingTime <= timeThreshold;
         }
-        if (checkStatusProtect || checkStatusShell)
+        if (protect || shell)
         {
             var current = Svc.Targets.Target as IPlayerCharacter;
             // 排除当前目标, 允许在给当前目标上盾完毕之前就切换目标
@@ -79,78 +91,33 @@ public class TrapperTool
         }
         return null;
     }
-    public TrapperTool()
-    {
-        _ = new EzFrameworkUpdate(OnFrameworkUpdate);
-    }
-    public static void OnFrameworkUpdate()
-    {
-        if (!IsRunning)
-            return;
 
-        var checkStatusProtect = Config.CheckStatusProtect;
-        var checkStatusShell = Config.CheckStatusShell;
-
+    private static bool? DoNextCast()
+    {
         var (action1, action2) = Player.Object.CarriedLogoActions();
-        protectMinded = action1 == 12 || action2 == 12;
-        shellMinded = action1 == 13 || action2 == 13;
+        var hasProtect = action1 == 12 || action2 == 12;
+        var hasShell = action1 == 13 || action2 == 13;
 
-        if (!checkStatusProtect && !checkStatusShell
-            || checkStatusProtect && !protectMinded
-            || checkStatusShell && !shellMinded)
-        {
-            IsRunning = false;
-            return;
-        }
+        if (!hasProtect && !hasShell)
+            return null;
 
-        if (canChangeTarget)
-        {
-            var target = NextShieldTarget();
-            if (target is null)
-            {
-                IsRunning = false;
-                return;
-            }
-            Svc.Targets.Target = target;
-            canChangeTarget = false;
-            protectCasted = shellCasted = false;
-        }
+        var target = NextShieldTarget(hasProtect, hasShell);
+        if (target is null)
+            return null;
 
-        if (checkStatusProtect && !protectCasted && CastLogoProtect(Svc.Targets.Target))
+        Svc.Targets.Target = target;
+        if (hasProtect)
         {
-            protectCasted = true;
-            EzThrottler.Throttle("changeTarget", 1000);
-            return;
+            TaskManager.Enqueue(() => ExecuteActionSafe(ActionType.Action, 12969, target.GameObjectId), "CastProtect");
+            TaskManager.DelayNext(1000);
         }
-
-        if (checkStatusShell && !shellCasted && CastLogoShell(Svc.Targets.Target))
+        if (hasShell)
         {
-            shellCasted = true;
-            EzThrottler.Throttle("changeTarget", 1000);
-            return;
+            TaskManager.Enqueue(() => ExecuteActionSafe(ActionType.Action, 12970, target.GameObjectId), "CastShell");
+            TaskManager.DelayNext(1000);
         }
-
-        if ((!checkStatusProtect || protectCasted) && (!checkStatusShell || shellCasted))
-        {
-            if (EzThrottler.Throttle("changeTarget", 1000)) // 延迟1s后切目标
-            {
-                canChangeTarget = true;
-            }
-        }
+        TaskManager.Enqueue(DoNextCast, "DoNextCast");
+        return true;
     }
 
-    public static void Toggle()
-    {
-        if (IsRunning) Stop();
-        else Start();
-    }
-
-    public static void Start()
-    {
-        Svc.Targets.Target = null;
-        canChangeTarget = true;
-        IsRunning = true;
-    }
-
-    public static void Stop() => IsRunning = false;
 }
