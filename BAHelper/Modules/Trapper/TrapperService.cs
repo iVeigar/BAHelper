@@ -70,7 +70,7 @@ public sealed partial class TrapperService : IDisposable
         if (!Common.InBA && prevInBA)
             Reset();
         prevInBA = Common.InBA;
-        Trap.UpdateByScanResult(Common.MeWorldPos, LastScanResult);
+        Trap.UpdateByScanResult(Player.Position, LastScanResult);
         LastScanResult = ScanResult.None;
         if (EzThrottler.Throttle("TrapperService-Check", 200))
         {
@@ -252,7 +252,7 @@ public sealed partial class TrapperService : IDisposable
 
     public static void DrawMob(ImDrawListPtr drawList, MobObject mob)
     {
-        if (mob.Position.Distance2D(Common.MeWorldPos) > Config.TrapViewDistance) // todo: change config var name
+        if (mob.Position.Distance2D(Player.Position) > Config.TrapViewDistance) // todo: change config var name
             return;
 
         switch (mob.AggroType)
@@ -285,7 +285,7 @@ public sealed partial class TrapperService : IDisposable
         if (trap.State == TrapState.Disabled)
             return;
 
-        var distance = trap.Location.Distance2D(Common.MeWorldPos);
+        var distance = trap.Location.Distance2D(Player.Position);
         if (distance > Config.TrapViewDistance)
             return;
 
@@ -363,9 +363,9 @@ public sealed partial class TrapperService : IDisposable
     {
         if (Area.TryGet(areaTag, out var area) && area.ShowScanningSpot)
         {
-            foreach (var (Center, Radius, Tip) in area.ScanningSpots.Where(p => p.Center.Distance2D(Common.MeWorldPos) < Config.TrapViewDistance))
+            foreach (var (Center, Radius, Tip) in area.ScanningSpots.Where(p => p.Center.Distance2D(Player.Position) < Config.TrapViewDistance))
             {
-                var filled = Center.Distance2D(Common.MeWorldPos) <= Radius;
+                var filled = Center.Distance2D(Player.Position) <= Radius;
                 if (filled)
                     drawList.DrawRingWorld(Center, Radius, 1.5f, Config.ScanningSpotColor.SetAlpha(0.20f), filled: filled);
                 drawList.DrawRingWorldWithText(Center, Radius, 1.5f, Config.ScanningSpotColor, Tip);

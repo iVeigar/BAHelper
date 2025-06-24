@@ -18,8 +18,7 @@ namespace BAHelper.Modules;
 public static class Common
 {
     public static bool InHydatos => Player.Territory == 827U;
-    public static bool InBA => InHydatos && MeWorldPos.Y < 200f && MeCurrentArea != AreaTag.Entry;
-    public static Vector3 MeWorldPos { get; private set; } = Vector3.Zero;
+    public static bool InBA => InHydatos && Player.Position.Y < 200f && MeCurrentArea != AreaTag.Entry;
     public static AreaTag MeCurrentArea { get; private set; } = AreaTag.None;
     public static Dictionary<uint, string> LogoActionNames { get; } = Svc.Data.GetExcelSheet<EurekaMagiaAction>().ToDictionary(row => row.RowId, row => row.Action.Value.Name.ToDalamudString().TextValue.Replace("文理", string.Empty).Replace("的记忆", string.Empty).Replace("的加护", string.Empty));
     public static Dictionary<uint, uint> Wisdoms { get; } = new()
@@ -48,15 +47,13 @@ public static class Common
 
     private static unsafe void OnFrameworkUpdate()
     {
+        if (!Player.Available) return;
         if (!InHydatos)
         {
             if (reminded) reminded = false;
             return;
         }
-        
-        if (!Player.Available) return;
-        MeWorldPos = Player.Object.Position;
-        MeCurrentArea = Area.Locate(MeWorldPos)?.Tag ?? AreaTag.None;
+        MeCurrentArea = Area.Locate(Player.Position)?.Tag ?? AreaTag.None;
         if (Plugin.Config.ElementLevelReminderEnabled && !reminded && !GenericHelpers.IsOccupied())
         {
             var note = $"当前等级：\xE03A \xE06A.{Player.BattleChara->ForayInfo.Level}";

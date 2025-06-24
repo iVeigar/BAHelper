@@ -32,7 +32,7 @@ public static class Utils
     public unsafe static void SetFlagMarker(uint territoryId, uint mapId, float x, float y)
     {
         var mapLinkPayload = new MapLinkPayload(territoryId, mapId, x, y);
-        AgentMap.Instance()->IsFlagMarkerSet = 0;
+        AgentMap.Instance()->IsFlagMarkerSet = false;
         AgentMap.Instance()->SetFlagMapMarker(territoryId, mapId, mapLinkPayload.RawX / 1000f, mapLinkPayload.RawY / 1000f);
     }
 

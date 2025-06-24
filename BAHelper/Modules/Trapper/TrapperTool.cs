@@ -1,6 +1,5 @@
 ﻿using System.Linq;
 using Dalamud.Game.ClientState.Objects.SubKinds;
-using Dalamud.Game.ClientState.Objects.Types;
 using ECommons.Automation.LegacyTaskManager;
 using ECommons.DalamudServices;
 using ECommons.GameHelpers;
@@ -8,7 +7,7 @@ using FFXIVClientStructs.FFXIV.Client.Game;
 
 namespace BAHelper.Modules.Trapper;
 
-public class TrapperTool()
+public static class TrapperTool
 {
     public static bool IsRunning => TaskManager.IsBusy;
 
@@ -21,14 +20,6 @@ public class TrapperTool()
         if (IsRunning) Stop();
         else Start();
     }
-
-    public static void Start()
-    {
-        if (IsRunning) return;
-        TaskManager.Enqueue(DoNextCast, "DoNextCast");
-    }
-
-    public static void Stop() => TaskManager.Abort();
 
     private static unsafe bool ExecuteActionSafe(ActionType type, uint actionId, ulong targetId = 0xE0000000)
     {
@@ -46,78 +37,59 @@ public class TrapperTool()
             return false;
         return true;
     }
-
-    private static IGameObject? NextShieldTarget(bool protect, bool shell)
+    private static (bool, bool) Candidate(IPlayerCharacter player, bool protect, bool shell, int timeThreshold)
     {
-        var timeThreshold = Config.ShieldRemainingTimeThreshold * 60;
-        bool check(IPlayerCharacter player)
+        float protectRemainingTime = 0f;
+        float shellRemainingTime = 0f;
+        bool protectFound = false;
+        bool shellFound = false;
+        foreach (var status in player.StatusList)
         {
-            float protectRemainingTime = 0f;
-            float shellRemainingTime = 0f;
-            bool protectFound = false;
-            bool shellFound = false;
-            foreach (var status in player.StatusList)
+            switch (status.StatusId)
             {
-                if (protect && !protectFound || shell && !shellFound)
-                {
-                    switch (status.StatusId)
-                    {
-                        case 1642: // 文理护盾statusid 1642
-                            protectFound = true;
-                            protectRemainingTime = status.RemainingTime;
-                            break;
-                        case 1643: // 文理魔盾statusid 1643
-                            shellFound = true;
-                            shellRemainingTime = status.RemainingTime;
-                            break;
-                        default:
-                            break;
-                    }
-                }
-                else break;
+                case 1642: // 文理护盾statusid 1642
+                    protectFound = true;
+                    protectRemainingTime = status.RemainingTime;
+                    break;
+                case 1643: // 文理魔盾statusid 1643
+                    shellFound = true;
+                    shellRemainingTime = status.RemainingTime;
+                    break;
+                default:
+                    break;
             }
-            return protect && protectRemainingTime <= timeThreshold
-                || shell && shellRemainingTime <= timeThreshold;
-        }
-        if (protect || shell)
-        {
-            var current = Svc.Targets.Target as IPlayerCharacter;
-            // 排除当前目标, 允许在给当前目标上盾完毕之前就切换目标
-            var target = Svc.Objects.OfType<IPlayerCharacter>()
-                .Where(p => (current is null || p.GameObjectId != current.GameObjectId) && p.IsTargetable && p.Position.Distance(Common.MeWorldPos) < 25.0f && check(p))
-                .OrderBy(p => p.Position.Distance(Common.MeWorldPos))
-                .FirstOrDefault();
-            return target;
-        }
-        return null;
-    }
 
-    private static bool? DoNextCast()
+            if ((!protect || protectFound) && (!shell || shellFound))
+                break;
+        }
+        return (protect && protectRemainingTime <= timeThreshold, shell && shellRemainingTime <= timeThreshold);
+    }
+    public static void Stop() => TaskManager.Abort();
+
+    private static void Start()
     {
         var (action1, action2) = Player.Object.CarriedLogoActions();
         var hasProtect = action1 == 12 || action2 == 12;
         var hasShell = action1 == 13 || action2 == 13;
 
         if (!hasProtect && !hasShell)
-            return null;
-
-        var target = NextShieldTarget(hasProtect, hasShell);
-        if (target is null)
-            return null;
-
-        Svc.Targets.Target = target;
-        if (hasProtect)
+            return;
+        var timeThreshold = Config.ShieldRemainingTimeThreshold * 60;
+        foreach (var player in Svc.Objects.OfType<IPlayerCharacter>().Where(p => !p.IsDead && p.IsTargetable && p.Position.Distance(Player.Position) < 25.0f).OrderBy(p => p.Position.Distance(Player.Position)))
         {
-            TaskManager.Enqueue(() => ExecuteActionSafe(ActionType.Action, 12969, target.GameObjectId), "CastProtect");
-            TaskManager.DelayNext(1000);
+            var (needProtect, needShell) = Candidate(player, hasProtect, hasShell, timeThreshold);
+            var id = player.GameObjectId;
+            var name = player.Name;
+            if (needProtect)
+            {
+                TaskManager.Enqueue(() => ExecuteActionSafe(ActionType.Action, 12969, id), $"Cast Protect to {name}");
+                TaskManager.DelayNext(1000);
+            }
+            if (needShell)
+            {
+                TaskManager.Enqueue(() => ExecuteActionSafe(ActionType.Action, 12970, id), $"Cast Shell to {name}");
+                TaskManager.DelayNext(1000);
+            }
         }
-        if (hasShell)
-        {
-            TaskManager.Enqueue(() => ExecuteActionSafe(ActionType.Action, 12970, target.GameObjectId), "CastShell");
-            TaskManager.DelayNext(1000);
-        }
-        TaskManager.Enqueue(DoNextCast, "DoNextCast");
-        return true;
     }
-
 }

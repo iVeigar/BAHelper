@@ -12,9 +12,7 @@ using Dalamud.Interface.Windowing;
 using ECommons;
 using ECommons.Automation;
 using ECommons.DalamudServices;
-using ECommons.GameHelpers;
 using ECommons.ImGuiMethods;
-using FFXIVClientStructs.FFXIV.Client.Game;
 using ImGuiNET;
 
 
@@ -169,7 +167,10 @@ public sealed class MainWindow() : Window("兵武塔助手", ImGuiWindowFlags.Al
         ImGui.Text("盾剩余时间阈值（分钟）");
 
         ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScaleSafe);
-        save |= ImGui.SliderInt("", ref Config.ShieldRemainingTimeThreshold, 1, 29);
+        using (ImRaii.Disabled(TrapperTool.IsRunning))
+        {
+            save |= ImGui.SliderInt("", ref Config.ShieldRemainingTimeThreshold, 1, 29);
+        }
         if (save)
             Config.Save();
 
