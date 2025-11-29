@@ -54,7 +54,7 @@ public class Area
     public List<(Vector3 Center, float Radius, string Tip)> ScanningSpots { get; init; }
 
     private List<Trap> _traps = null;
-    public List<Trap> Traps => _traps ??= Trap.AllTraps.Values.Where(t => t.AreaTag == Tag).ToList();
+    public List<Trap> Traps => _traps ??= [.. Trap.AllTraps.Values.Where(t => t.AreaTag == Tag)];
     public bool ShowScanningSpot => Traps.Any(trap => trap.State == TrapState.NotScanned);
     public static bool TryGet(AreaTag areaTag, out Area area)
     {

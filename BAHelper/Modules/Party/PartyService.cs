@@ -1,6 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections.Generic;
+using BAHelper.Utility;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
 using ECommons;
@@ -79,13 +78,13 @@ public class PartyService
                 if (!GenericHelpers.TryGetAddonByName<AtkUnitBase>("CharacterInspect", out var addon) ||
                     !GenericHelpers.IsAddonReady(addon))
                 {
-                    AgentInspect.Instance()->ExamineCharacter(member.ObjectId);
+                    AgentInspect.Instance()->ExamineCharacter(member.EntityId);
                     return false;
                 }
                 var container = InventoryManager.Instance()->GetInventoryContainer(InventoryType.Examine);
                 if (container == null)
                 {
-                    AgentInspect.Instance()->ExamineCharacter(member.ObjectId);
+                    AgentInspect.Instance()->ExamineCharacter(member.EntityId);
                     return false;
                 }
 
@@ -95,7 +94,7 @@ public class PartyService
                 {
                     if (i == 0)
                     {
-                        var mainHand = Svc.Data.GetExcelSheet<Item>().GetRow(container->GetInventorySlot(i)->ItemId);
+                        var mainHand = Utils.GetSheetRow<Item>(container->GetInventorySlot(i)->ItemId);
                         var category = mainHand.ClassJobCategory.RowId;
                         if (HaveOffHandJobCategories.Contains(category))
                             itemSlotAmount++;
@@ -110,7 +109,7 @@ public class PartyService
                     if (slot == null) continue;
 
                     var itemID = slot->ItemId;
-                    var item = Svc.Data.GetExcelSheet<Item>().GetRow(itemID);
+                    var item = Utils.GetSheetRow<Item>(itemID);
 
                     if (item.ItemSpecialBonus.RowId == 7) // 优雷卡专用效果
                     {
