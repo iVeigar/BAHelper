@@ -2,39 +2,41 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using System.Text.RegularExpressions;
 using System.Threading;
+using BAHelper.Utility;
+using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Game.Gui.Toast;
-using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
-using Dalamud.Utility;
 using ECommons;
 using ECommons.DalamudServices;
 using ECommons.EzEventManager;
+using ECommons.EzHookManager;
 using ECommons.GameHelpers;
 using ECommons.Throttlers;
-using ImGuiNET;
 namespace BAHelper.Modules.Trapper;
 
-public sealed partial class TrapperService : IDisposable
+public sealed class TrapperService : IDisposable
 {
-    [GeneratedRegex("^(?<result>.*?)隐藏的陷阱！$")] // 发现了 / 附近感觉到有 / 附近没感觉到
-    private static partial Regex MyRegex();
     private static Configuration Config => Plugin.Config;
     private readonly HashSet<Vector3> TrapRevealed = [];
     private readonly List<MobObject> MobObjects = [];
     private bool prevInBA = false;
     public AreaTag ChestFoundAt { get; private set; } = AreaTag.None;
-    public ScanResult LastScanResult { get; private set; } = ScanResult.None;
     public HashSet<AreaTag> PossibleAreasOfPortal { get; } = [];
+
+#pragma warning disable CS0169
+    private unsafe delegate void SystemLogMessageDelegate(uint entityId, uint logMessageId, int* args, byte argCount);
+    [EzHook("E8 ?? ?? ?? ?? E9 ?? ?? ?? ?? 0F B6 47 28", nameof(SystemLogMessageDetour))]
+    private readonly EzHook<SystemLogMessageDelegate> SystemLogMessageHook;
+#pragma warning restore CS0169
 
     public TrapperService()
     {
+        EzSignatureHelper.Initialize(this);
         Svc.PluginInterface.UiBuilder.Draw += OnDraw;
-        Svc.Chat.CheckMessageHandled += OnChatMessage;
         _ = new EzFrameworkUpdate(OnFrameworkUpdate);
         _ = new EzTerritoryChanged(OnTerritoryChanged);
     }
@@ -46,32 +48,33 @@ public sealed partial class TrapperService : IDisposable
             || Svc.Condition[ConditionFlag.BetweenAreas]
             || Svc.Condition[ConditionFlag.BetweenAreas51]);
 
-    private void OnChatMessage(XivChatType type, int timestamp, ref SeString sender, ref SeString message, ref bool isHandled)
+    private unsafe static void SystemLogMessageDetour(uint entityId, uint logId, int* args, byte argCount)
     {
-        if (!Config.AdvancedModeEnabled || (XivChatType)((int)type & 0x7f) != XivChatType.SystemMessage)
+        if (logId < 9103 || logId > 9105 || !Config.AdvancedModeEnabled || !Common.InBA)
             return;
-
-        if (MyRegex().Match(message.GetText()) is var match && match.Success)
+        var scanResult = logId switch
         {
-            var result = match.Groups["result"].Value;
-            if (result.Contains("发现"))
-                LastScanResult = ScanResult.Discover;
-            else if (result.Contains("感觉到有"))
-                LastScanResult = ScanResult.Sense;
-            else
-                LastScanResult = ScanResult.NotSense;
-        }
+            9103 => ScanResult.Discover, // 发现了隐藏的陷阱！
+            9104 => ScanResult.Sense, // 附近感觉到有隐藏的陷阱！
+            9105 => ScanResult.NotSense, // 附近没感觉到隐藏的陷阱！
+            _ => ScanResult.None
+        };
+        Trap.UpdateByScanResult(Player.Position, scanResult);
     }
 
     private void OnFrameworkUpdate()
     {
         if (!Common.InHydatos) return;
         if (Svc.Objects == null) return;
-        if (!Common.InBA && prevInBA)
-            Reset();
-        prevInBA = Common.InBA;
-        Trap.UpdateByScanResult(Player.Position, LastScanResult);
-        LastScanResult = ScanResult.None;
+        if (!Common.InBA)
+        {
+            if (prevInBA)
+                Reset();
+            return;
+        }
+        else if (!prevInBA)
+            prevInBA = true;
+
         if (EzThrottler.Throttle("TrapperService-Check", 200))
         {
             EnumerateAllObjects();
@@ -90,12 +93,12 @@ public sealed partial class TrapperService : IDisposable
         Monitor.Enter(MobObjects);
         MobObjects.Clear();
         Monitor.Exit(MobObjects);
+        prevInBA = false;
     }
 
     public void Dispose()
     {
         Svc.PluginInterface.UiBuilder.Draw -= OnDraw;
-        Svc.Chat.ChatMessage -= OnChatMessage;
     }
 
     private void CheckPortalStatus()
@@ -111,10 +114,6 @@ public sealed partial class TrapperService : IDisposable
         if (Config.DrawRecordedTraps)
         {
             DrawTraps(drawList, Trap.AllTraps.Values);
-        }
-        if (Config.DrawAreaBorder)
-        {
-            DrawAllAreasBorder(drawList);
         }
         if (Config.DrawRecommendedScanningSpots)
         {
@@ -175,9 +174,9 @@ public sealed partial class TrapperService : IDisposable
 
         var trapType = obj switch
         {
-            { DataId: 2009728U } => TrapType.BigBomb,
-            { DataId: 2009729U } => TrapType.Portal,
-            { DataId: 2009730U } => TrapType.SmallBomb,
+            { BaseId: 2009728U } => TrapType.BigBomb,
+            { BaseId: 2009729U } => TrapType.Portal,
+            { BaseId: 2009730U } => TrapType.SmallBomb,
             IBattleNpc { NameId: 7958U } when (areaTag == AreaTag.CircularPlatform || areaTag == AreaTag.OctagonRoomFromRaiden || areaTag == AreaTag.OctagonRoomToRoomGroup2) => TrapType.SmallBomb,
             IBattleNpc { NameId: 7958U } => TrapType.BigBomb,
             _ => TrapType.None

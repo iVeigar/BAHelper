@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Numerics;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 
-namespace BAHelper;
+namespace BAHelper.Utility;
 
 public static class Color // ABGR
 {
@@ -10,7 +10,8 @@ public static class Color // ABGR
 
     public static readonly Lazy<Vector4> RandomColor = new(delegate ()
     {
-        ImGui.ColorConvertHSVtoRGB((float)random.NextDouble(), 1f, 1f, out var out_r, out var out_g, out var out_b);
+        float out_r = 0f, out_g = 0f, out_b = 0f;
+        ImGui.ColorConvertHSVtoRGB((float)random.NextDouble(), 1f, 1f, ref out_r, ref out_g, ref out_b);
         return new(out_r, out_g, out_b, 1f);
     });
 

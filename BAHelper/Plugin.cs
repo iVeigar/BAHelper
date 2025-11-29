@@ -1,5 +1,4 @@
-﻿using BAHelper.Windows;
-using Dalamud.Game.Text;
+﻿using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
@@ -14,6 +13,7 @@ public sealed class Plugin : IDalamudPlugin
 {
     private readonly WindowSystem WindowSystem;
     private readonly MainWindow MainWindow;
+
     public static Configuration Config { get; private set; }
 
     public Plugin(IDalamudPluginInterface pluginInterface)

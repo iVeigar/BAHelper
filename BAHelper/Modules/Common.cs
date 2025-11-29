@@ -5,20 +5,22 @@ using BAHelper.Modules.Trapper;
 using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
-using Dalamud.Game.Gui.Toast;
 using Dalamud.Utility;
 using ECommons;
 using ECommons.DalamudServices;
 using ECommons.EzEventManager;
 using ECommons.GameHelpers;
 using ECommons.MathHelpers;
+using FFXIVClientStructs.FFXIV.Client.UI;
 using Lumina.Excel.Sheets;
 namespace BAHelper.Modules;
 
 public static class Common
 {
     public static bool InHydatos => Player.Territory == 827U;
-    public static bool InBA => InHydatos && Player.Position.Y < 200f && MeCurrentArea != AreaTag.Entry;
+    //public static bool InBA => InHydatos && Player.Position.Y < 200f && MeCurrentArea != AreaTag.Entry;
+    public static bool InBA => InHydatos && (Player.Status?.Any(s => s.StatusId == 1755) ?? false); // 限制复活 debuff
+
     public static AreaTag MeCurrentArea { get; private set; } = AreaTag.None;
     public static Dictionary<uint, string> LogoActionNames { get; } = Svc.Data.GetExcelSheet<EurekaMagiaAction>().ToDictionary(row => row.RowId, row => row.Action.Value.Name.ToDalamudString().TextValue.Replace("文理", string.Empty).Replace("的记忆", string.Empty).Replace("的加护", string.Empty));
     public static Dictionary<uint, uint> Wisdoms { get; } = new()
@@ -56,8 +58,9 @@ public static class Common
         MeCurrentArea = Area.Locate(Player.Position)?.Tag ?? AreaTag.None;
         if (Plugin.Config.ElementLevelReminderEnabled && !reminded && !GenericHelpers.IsOccupied())
         {
-            var note = $"当前等级：\xE03A \xE06A.{Player.BattleChara->ForayInfo.Level}";
-            Svc.Toasts.ShowQuest($"BA助手提示您{note}", new QuestToastOptions { IconId = 65060, PlaySound = true });
+            var level = Player.BattleChara->ForayInfo.Level;
+            var note = $"当前等级：\xE03A \xE06A.{level}";
+            ShowTextGimmick($"兵武塔助手提示您{note}", level < 60);
             Plugin.PrintMessage(note);
             reminded = true;
         }
@@ -72,7 +75,7 @@ public static class Common
 
     public static (uint, uint) CarriedLogoActions(this IPlayerCharacter? player)
     {
-        uint param = player?.StatusList.FirstOrDefault(status => status.StatusId == 1618, null)?.Param ?? 0;
+        uint param = player?.StatusList?.FirstOrDefault(status => status!.StatusId == 1618, null)?.Param ?? 0;
         uint logo1 = param >> 8, logo2 = param & 0xFF;
         // 调整前后顺序,把记忆放在第一个
         if (!Wisdoms.ContainsKey(logo1) && Wisdoms.ContainsKey(logo2))
@@ -92,4 +95,12 @@ public static class Common
     public static bool HasVulnerabilityUp(this IPlayerCharacter player) => player.HasStatus(202u, 714u, 1412u, 1597u, 1789u, 2213u, 2912u, 3557u);
 
     public static bool IsSpiritOfTheRememberedActive(this IPlayerCharacter player) => player.HasStatus(1641u);
+
+    private static unsafe void ShowTextGimmick(string message, bool warning = false)
+    {
+        RaptureAtkModule.Instance()->ShowTextGimmickHint(
+            message,
+            warning ? RaptureAtkModule.TextGimmickHintStyle.Warning : RaptureAtkModule.TextGimmickHintStyle.Info,
+            100); // 实际时间是 duration * 100ms
+    }
 }

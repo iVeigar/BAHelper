@@ -4,6 +4,8 @@ using BAHelper.Modules;
 using BAHelper.Modules.General;
 using BAHelper.Modules.Party;
 using BAHelper.Modules.Trapper;
+using BAHelper.Utility;
+using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility;
@@ -13,10 +15,9 @@ using ECommons;
 using ECommons.Automation;
 using ECommons.DalamudServices;
 using ECommons.ImGuiMethods;
-using ImGuiNET;
 
 
-namespace BAHelper.Windows;
+namespace BAHelper;
 
 public sealed class MainWindow() : Window("兵武塔助手", ImGuiWindowFlags.AlwaysAutoResize)
 {
@@ -71,7 +72,7 @@ public sealed class MainWindow() : Window("兵武塔助手", ImGuiWindowFlags.Al
     //    ImGui.Text("Area: "); ImGui.SameLine(); ImGui.Text(Common.MeCurrentArea.ToString());
     //}
 
-    private void DrawDashboardTab()
+    private static void DrawDashboardTab()
     {
         ImGui.Text("玩家监控");
         ImGui.SameLine();
@@ -110,7 +111,7 @@ public sealed class MainWindow() : Window("兵武塔助手", ImGuiWindowFlags.Al
         ImGuiEx.EzTable("玩家监控", ImGuiTableFlags.Borders, entries, true);
     }
 
-    private void DrawPartyTab()
+    private static void DrawPartyTab()
     {
         ImGui.TextWrapped("点击发送小队门坐标到:");
         ImGui.SameLine();
@@ -154,7 +155,7 @@ public sealed class MainWindow() : Window("兵武塔助手", ImGuiWindowFlags.Al
             ImGui.SetTooltip("未组成小队");
     }
 
-    private unsafe void DrawTrapperTab()
+    private static unsafe void DrawTrapperTab()
     {
         var save = false;
         ImGui.Text("自动上盾功能");
@@ -179,7 +180,7 @@ public sealed class MainWindow() : Window("兵武塔助手", ImGuiWindowFlags.Al
             ImGui.Separator();
             ImGui.Text("快捷喊话");
             ImGui.SameLine();
-            ImGuiComponents.HelpMarker("须启用扫描与绘图功能");
+            ImGuiComponents.HelpMarker("启用扫描与绘图功能后可用");
             var bigButtonSize = ImGuiHelpers.ScaledVector2(95f, 60f);
             var smallButtonSize = ImGuiHelpers.ScaledVector2(60f, 45f);
             using (ImRaii.Disabled(TrapperService.ChestFoundAt == AreaTag.None))
@@ -235,10 +236,12 @@ public sealed class MainWindow() : Window("兵武塔助手", ImGuiWindowFlags.Al
             {
                 TrapperService.Reset();
             }
+            ImGui.SameLine();
+            ImGuiComponents.HelpMarker("绘图器会根据探景结果文字提示排除掉不存在陷阱的点位，\n但这存在延迟，边移动边探景可能导致画图错误。\n探景后保持静止一秒左右可以避免这个问题，也可以点此按钮重新画图");
         }
     }
 
-    private void DrawConfigTab()
+    private static void DrawConfigTab()
     {
         var save = false;
         if (ImGui.CollapsingHeader("工兵"))
@@ -310,6 +313,10 @@ public sealed class MainWindow() : Window("兵武塔助手", ImGuiWindowFlags.Al
                 }
 
                 save |= ImGui.Checkbox("绘制陷阱15m半径提示圈", ref Config.DrawTrap15m);
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip("这个范围内探景会直接扫出陷阱（如果该陷阱存在）");
+                }
                 ImGui.SameLine();
                 var trap15mCircleColorV4 = Config.Trap15mCircleColor.ToVector4();
                 if (ImGuiUtils.ColorPickerWithPalette(5, "", ref trap15mCircleColorV4))
@@ -327,6 +334,10 @@ public sealed class MainWindow() : Window("兵武塔助手", ImGuiWindowFlags.Al
                 }
 
                 save |= ImGui.Checkbox("绘制陷阱36m半径提示圈", ref Config.DrawTrap36m);
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip("这个范围内探景会感知到该陷阱是否存在");
+                }
                 ImGui.SameLine();
                 var trap36mCircleColorV4 = Config.Trap36mCircleColor.ToVector4();
                 if (ImGuiUtils.ColorPickerWithPalette(6, "", ref trap36mCircleColorV4))

@@ -10,7 +10,7 @@ public enum AggroType
 }
 public class MobInfo
 {
-    public uint Id; // Character.NameId
+    public uint Id; // IBattleNpc.NameId
     public AggroType AggroType;
     public float AggroDistance;
     public static Dictionary<uint, MobInfo> Mobs { get; } = new()

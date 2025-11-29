@@ -19,6 +19,8 @@ public sealed class DashboardService
 
     private void OnFrameworkUpdate()
     {
+        if (!Common.InHydatos)
+            return;
         if (Svc.Objects == null)
         {
             if (Players.Count > 0)
@@ -39,9 +41,9 @@ public sealed class DashboardService
             if (Check(p, out var result, out var sticky))
             {
                 if (!sticky)
-                    Players.Add(result!);
+                    Players.Add(result);
                 else
-                    Players.Insert(0, result!);
+                    Players.Insert(0, result);
             }
         }
     }

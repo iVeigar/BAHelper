@@ -1,12 +1,13 @@
-﻿using Dalamud.Configuration;
+﻿using BAHelper.Utility;
+using Dalamud.Configuration;
 using ECommons.Configuration;
 
 namespace BAHelper;
 
-public class Configuration : IEzConfig, IPluginConfiguration
+public class Configuration : IPluginConfiguration
 {
     public void Save() => EzConfig.Save();
-    public int Version { get; set; } = 0;
+    public int Version { get; set; } = 1;
 
     public bool OnlyShowStanceOn = false;
 
@@ -43,5 +44,4 @@ public class Configuration : IEzConfig, IPluginConfiguration
     public uint ScanningSpot36mCircleColor = Color.White;
     public uint NormalAggroColor = Color.Brown;
     public uint SoundAggroColor = Color.Magenta;
-    public bool DrawAreaBorder = false;
 }

@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
-using System.ComponentModel;
 using System.Linq;
 using System.Numerics;
+using BAHelper.Utility;
 using ECommons;
 
 namespace BAHelper.Modules.Trapper;
@@ -237,24 +237,24 @@ public class Trap
 
     public static List<HashSet<int>> TrapSets { get; } =
     [
-        Enumerable.Range(0, 12).ToHashSet(), // CircularPlatform
-        Enumerable.Range(12, 3).ToHashSet(), // CorridorFromArt
-        Enumerable.Range(15, 3).ToHashSet(), // CorridorFromOwain
-        Enumerable.Range(18, 3).ToHashSet(), // OctagonRoomToRoomGroup1
-        Enumerable.Range(21, 14).ToHashSet(), // RoomGroup1 Portals
-        Enumerable.Range(35, 5).ToHashSet(), // IceRoom1 TrapSet1
-        Enumerable.Range(40, 5).ToHashSet(), // IceRoom1 TrapSet2
-        Enumerable.Range(45, 3).ToHashSet(), // LightningRoom1 Traps
-        Enumerable.Range(48, 5).ToHashSet(), // WaterRoom1 TrapSet1
-        Enumerable.Range(53, 5).ToHashSet(), // WaterRoom1 TrapSet2
-        Enumerable.Range(58, 3).ToHashSet(), // WindRoom1 Traps
-        Enumerable.Range(61, 4).ToHashSet(), // IceRoom2
-        Enumerable.Range(65, 4).ToHashSet(), // LightningRoom2
-        Enumerable.Range(69, 4).ToHashSet(), // FireRoom2
-        Enumerable.Range(73, 4).ToHashSet(), // WaterRoom2
-        Enumerable.Range(77, 4).ToHashSet(), // WindRoom2
-        Enumerable.Range(81, 4).ToHashSet(), // EarthRoom2
-        Enumerable.Range(100, 8).ToHashSet(), // OctagonRoomFromRaiden // todo add more
-        Enumerable.Range(110, 8).ToHashSet(), // OctagonRoomToRoomGroup2 // todo add more
+        [..Enumerable.Range(0, 12)], // CircularPlatform
+        [..Enumerable.Range(12, 3)], // CorridorFromArt
+        [..Enumerable.Range(15, 3)], // CorridorFromOwain
+        [..Enumerable.Range(18, 3)], // OctagonRoomToRoomGroup1
+        [..Enumerable.Range(21, 14)], // RoomGroup1 Portals
+        [..Enumerable.Range(35, 5)], // IceRoom1 TrapSet1
+        [..Enumerable.Range(40, 5)], // IceRoom1 TrapSet2
+        [..Enumerable.Range(45, 3)], // LightningRoom1 Traps
+        [..Enumerable.Range(48, 5)], // WaterRoom1 TrapSet1
+        [..Enumerable.Range(53, 5)], // WaterRoom1 TrapSet2
+        [..Enumerable.Range(58, 3)], // WindRoom1 Traps
+        [..Enumerable.Range(61, 4)], // IceRoom2
+        [..Enumerable.Range(65, 4)], // LightningRoom2
+        [..Enumerable.Range(69, 4)], // FireRoom2
+        [..Enumerable.Range(73, 4)], // WaterRoom2
+        [..Enumerable.Range(77, 4)], // WindRoom2
+        [..Enumerable.Range(81, 4)], // EarthRoom2
+        [..Enumerable.Range(100, 8)], // OctagonRoomFromRaiden // todo add more
+        [..Enumerable.Range(110, 8)], // OctagonRoomToRoomGroup2 // todo add more
     ];
 }
