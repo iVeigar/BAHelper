@@ -48,8 +48,9 @@ public sealed class TrapperService : IDisposable
             || Svc.Condition[ConditionFlag.BetweenAreas]
             || Svc.Condition[ConditionFlag.BetweenAreas51]);
 
-    private unsafe static void SystemLogMessageDetour(uint entityId, uint logId, int* args, byte argCount)
+    private unsafe void SystemLogMessageDetour(uint entityId, uint logId, int* args, byte argCount)
     {
+        SystemLogMessageHook!.Original(entityId, logId, args, argCount);
         if (logId < 9103 || logId > 9105 || !Config.AdvancedModeEnabled || !Common.InBA)
             return;
         var scanResult = logId switch
