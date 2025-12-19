@@ -27,11 +27,11 @@ public sealed class TrapperService : IDisposable
     public AreaTag ChestFoundAt { get; private set; } = AreaTag.None;
     public HashSet<AreaTag> PossibleAreasOfPortal { get; } = [];
 
-#pragma warning disable CS0169
+#pragma warning disable CS0649
     private unsafe delegate void SystemLogMessageDelegate(uint entityId, uint logMessageId, int* args, byte argCount);
     [EzHook("E8 ?? ?? ?? ?? E9 ?? ?? ?? ?? 0F B6 47 28", nameof(SystemLogMessageDetour))]
     private readonly EzHook<SystemLogMessageDelegate> SystemLogMessageHook;
-#pragma warning restore CS0169
+#pragma warning restore CS0649
 
     public TrapperService()
     {

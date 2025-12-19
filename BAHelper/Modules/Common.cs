@@ -17,7 +17,7 @@ namespace BAHelper.Modules;
 
 public static class Common
 {
-    public static bool InHydatos => Player.Territory == 827U;
+    public static bool InHydatos => Player.Territory.RowId == 827U;
     //public static bool InBA => InHydatos && Player.Position.Y < 200f && MeCurrentArea != AreaTag.Entry;
     public static bool InBA => InHydatos && (Player.Status?.Any(s => s.StatusId == 1755) ?? false); // 限制复活 debuff
 
